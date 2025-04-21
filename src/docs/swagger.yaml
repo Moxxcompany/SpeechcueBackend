@@ -1,0 +1,107 @@
+openapi: 3.0.0
+info:
+  title: SpeechCue API
+  version: 1.0.0
+  description: REST API for managing users and authentication
+servers:
+  - url: http://localhost:8888
+
+paths:
+  /api/users:
+    get:
+      summary: Get all users
+      tags: [Users]
+      responses:
+        200:
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+    post:
+      summary: Create a new user
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+      responses:
+        201:
+          description: User created successfully
+
+  /api/auth/web-login:
+    post:
+      summary: Web App Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: JWT returned
+
+  /api/auth/telegram-mini:
+    post:
+      summary: Telegram Mini App Authentication
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                id: "12345678"
+                first_name: "Hemang"
+                username: "hemang"
+                auth_date: "1685467890"
+                hash: "abcdefg..."
+      responses:
+        200:
+          description: JWT returned
+
+  /api/auth/telegram-bot:
+    post:
+      summary: Telegram Bot Authentication
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                telegramId:
+                  type: string
+                name:
+                  type: string
+      responses:
+        200:
+          description: JWT returned
+
+tags:
+  - name: Users
+    description: API for user management
+  - name: Auth
+    description: Authentication endpoints
