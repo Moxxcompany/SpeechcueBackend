@@ -1,5 +1,4 @@
-const db = require('../models');
-const User = db.users;
+const { User } = require('../models'); 
 
 // Get all users
 exports.getAllUsers = async (req, res, next) => {
@@ -14,10 +13,10 @@ exports.getAllUsers = async (req, res, next) => {
 // Create new user
 exports.createUser = async (req, res, next) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, password } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required.' });
     }
 
     const existing = await User.findOne({ where: { email } });
@@ -25,7 +24,7 @@ exports.createUser = async (req, res, next) => {
       return res.status(409).json({ error: 'Email already exists.' });
     }
 
-    const user = await User.create({ name, email });
+    const user = await User.create({ name, email, password });
     res.status(201).json(user);
   } catch (error) {
     next(error);

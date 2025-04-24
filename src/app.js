@@ -6,6 +6,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const notFound = require('./middlewares/notFound');
 const userRoutes = require('./routes/user.routes');
 const authRoutes = require('./routes/auth.routes');
+const twilioRoutes = require('./routes/twilio.routes');
 
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/twilio', twilioRoutes);
 
 // Swagger Docs
 swaggerSetup(app);

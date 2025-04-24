@@ -33,10 +33,13 @@ paths:
               required:
                 - name
                 - email
+                - password
               properties:
                 name:
                   type: string
                 email:
+                  type: string
+                password:
                   type: string
       responses:
         201:
@@ -100,8 +103,493 @@ paths:
         200:
           description: JWT returned
 
+  /api/twilio/countries:
+    get:
+      summary: List countries available for phone number provisioning
+      tags: [Twilio]
+      responses:
+        200:
+          description: List of countries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    country:
+                      type: string
+                    isoCountry:
+                      type: string
+                    priceUnit:
+                      type: string
+
+  /api/twilio/number-types/{isoCountry}:
+    get:
+      summary: Get available number types for a specific country
+      tags: [Twilio]
+      parameters:
+        - name: isoCountry
+          in: path
+          required: true
+          schema:
+            type: string
+            example: US
+      responses:
+        200:
+          description: List of available number types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                      example: local
+                    value:
+                      type: string
+                      example: local
+
+      summary: Get available number types for a specific country
+      tags: [Twilio]
+      parameters:
+        - name: isoCountry
+          in: path
+          required: true
+          schema:
+            type: string
+            example: US
+      responses:
+        200:
+          description: List of available number types
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  types:
+                    type: array
+                    items:
+                      type: string
+                      enum: [local, mobile, tollFree]
+                    example: [local, tollFree]
+
+  /api/twilio/countries/{isoCountry}/regions:
+    get:
+      summary: Get list of regions by number type
+      tags: [Twilio]
+      parameters:
+        - name: isoCountry
+          in: path
+          required: true
+          schema:
+            type: string
+            example: US
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [local, mobile, tollFree]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: List of regions (paginated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        locality:
+                          type: string
+                        region:
+                          type: string
+                        isoCountry:
+                          type: string
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+                  totalPages:
+                    type: integer
+
+  /api/twilio/available-numbers:
+    get:
+      summary: Search available Twilio phone numbers
+      tags: [Twilio]
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+            example: US
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [local, mobile, tollFree]
+        - name: region
+          in: query
+          schema:
+            type: string
+            example: LA
+        - name: locality
+          in: query
+          schema:
+            type: string
+            example: New Iberia
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        200:
+          description: A list of available phone numbers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    friendlyName:
+                      type: string
+                      example: "+447453660364"
+                    phoneNumber:
+                      type: string
+                      example: "+447453660364"
+                    lata:
+                      type: string
+                      nullable: true
+                    locality:
+                      type: string
+                      nullable: true
+                    rateCenter:
+                      type: string
+                      nullable: true
+                    latitude:
+                      type: string
+                      example: "0.000000"
+                    longitude:
+                      type: string
+                      example: "0.000000"
+                    region:
+                      type: string
+                      nullable: true
+                    postalCode:
+                      type: string
+                      nullable: true
+                    isoCountry:
+                      type: string
+                      example: "GB"
+                    addressRequirements:
+                      type: string
+                      example: "none"
+                    beta:
+                      type: boolean
+                      example: false
+                    capabilities:
+                      type: object
+                      properties:
+                        voice:
+                          type: boolean
+                          example: true
+                        SMS:
+                          type: boolean
+                          example: true
+                        MMS:
+                          type: boolean
+                          example: false
+
+  /api/twilio/subaccounts/create:
+    post:
+      summary: Create a new Twilio subaccount
+      tags: [Twilio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [friendlyName,userId]
+              properties:
+                friendlyName:
+                  type: string
+                  example: "My Test SubAccount"
+                userId:
+                  type: string
+                  example: "userId"
+      responses:
+        201:
+          description: Subaccount created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  authToken:
+                    type: string
+                  status:
+                    type: string
+                  dateCreated:
+                    type: string
+  /api/twilio/subaccounts:
+    get:
+      summary: List all Twilio subaccounts
+      tags: [Twilio]
+      responses:
+        200:
+          description: List of subaccounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sid:
+                      type: string
+                      example: "ACXXXXXXXXXXXXXXXXXXXX"
+                    friendlyName:
+                      type: string
+                      example: "User-1234-Hemang"
+                    status:
+                      type: string
+                      example: "active"
+                    dateCreated:
+                      type: string
+                    dateUpdated:
+                      type: string
+
+  /api/twilio/subaccounts/suspend:
+    post:
+      summary: Suspend a Twilio subaccount
+      tags: [Twilio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subAccountSid]
+              properties:
+                subAccountSid:
+                  type: string
+                  example: ACXXXXXXXXXXXXXXXXXXXX
+      responses:
+        200:
+          description: Subaccount suspended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  status:
+                    type: string
+                    example: suspended
+                  dateUpdated:
+                    type: string
+
+  /api/twilio/subaccounts/reactivate:
+    post:
+      summary: Reactivate a suspended Twilio subaccount
+      tags: [Twilio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subAccountSid]
+              properties:
+                subAccountSid:
+                  type: string
+                  example: ACXXXXXXXXXXXXXXXXXXXX
+      responses:
+        200:
+          description: Subaccount reactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  status:
+                    type: string
+                    example: active
+                  dateUpdated:
+                    type: string
+
+  /api/twilio/subaccounts/close:
+    post:
+      summary: Close a Twilio subaccount
+      tags: [Twilio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subAccountSid
+              properties:
+                subAccountSid:
+                  type: string
+                  example: "ACXXXXXXXXXXXXXXXXXXXX"
+      responses:
+        200:
+          description: Subaccount closed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  status:
+                    type: string
+                    example: closed
+                  dateUpdated:
+                    type: string
+  /api/twilio/numbers/purchase:
+    post:
+      summary: Purchase a phone number from Twilio
+      tags: [Twilio]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber:
+                  type: string
+                  example: "+15005550006"
+                subAccountSid:
+                  type: string
+                  example: "ACXXXXXXXXXXXXXXXXXXXX"
+                voiceUrl:
+                  type: string
+                  example: "https://example.com/voice"
+                smsUrl:
+                  type: string
+                  example: "https://example.com/sms"
+                userId:
+                  type: integer
+                  example: 1
+      responses:
+        201:
+          description: Number purchased successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  phoneNumber:
+                    type: string
+                  friendlyName:
+                    type: string
+                  isoCountry:
+                    type: string
+                  capabilities:
+                    type: object
+  /api/twilio/numbers:
+    get:
+      summary: List purchased phone numbers
+      tags: [Twilio]
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        200:
+          description: List of phone numbers
+
+  /api/twilio/numbers/{sid}:
+    get:
+      summary: Get a purchased phone number by its SID
+      tags: [Twilio]
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          schema:
+            type: string
+            example: PNXXXXXXXXXXXXXXXXXXXX
+      responses:
+        200:
+          description: Phone number details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phoneNumber:
+                    type: string
+                  friendlyName:
+                    type: string
+                  isoCountry:
+                    type: string
+                  type:
+                    type: string
+                  capabilities:
+                    type: object
+                  voiceUrl:
+                    type: string
+                  smsUrl:
+                    type: string
+                  sid:
+                    type: string
+
+
+  /api/twilio/numbers/{sid}:
+    delete:
+      summary: Release a purchased number
+      tags: [Twilio]
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Number released
+
+
 tags:
   - name: Users
     description: API for user management
   - name: Auth
     description: Authentication endpoints
+  - name: Twilio
+    description: Twilio phone number management APIs
