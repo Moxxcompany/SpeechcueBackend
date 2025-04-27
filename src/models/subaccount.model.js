@@ -1,4 +1,4 @@
-module.exports = (sequelize, DataTypes) => {
+export default (sequelize, DataTypes) => {
     const SubAccount = sequelize.define('sub_account', {
         sid: { type: DataTypes.STRING, allowNull: false, unique: true },
         friendlyName: { type: DataTypes.STRING },

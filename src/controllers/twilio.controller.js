@@ -1,7 +1,7 @@
-const twilioService = require('../services/twilio.service');
-const logger = require('../config/logger');
+import * as twilioService from '../services/twilio.service.js';
+import logger from '../config/logger.js';
 
-exports.listCountries = async (req, res, next) => {
+export const listCountries = async (req, res, next) => {
     try {
         const countries = await twilioService.fetchCountryList();
         res.status(200).json(countries);
@@ -11,7 +11,7 @@ exports.listCountries = async (req, res, next) => {
     }
 };
 
-exports.getAvailableNumberTypes = async (req, res, next) => {
+export const getAvailableNumberTypes = async (req, res, next) => {
     const { isoCountry } = req.params;
 
     try {
@@ -23,7 +23,7 @@ exports.getAvailableNumberTypes = async (req, res, next) => {
     }
 };
 
-exports.getCountryRegions = async (req, res, next) => {
+export const getCountryRegions = async (req, res, next) => {
     const { isoCountry } = req.params;
     const { type, page = 1, limit = 20 } = req.query;
 
@@ -37,7 +37,7 @@ exports.getCountryRegions = async (req, res, next) => {
 };
 
 
-exports.getAvailablePhoneNumbers = async (req, res, next) => {
+export const getAvailablePhoneNumbers = async (req, res, next) => {
     const { country, type, region, locality, limit } = req.query;
 
     try {
@@ -56,18 +56,18 @@ exports.getAvailablePhoneNumbers = async (req, res, next) => {
     }
 };
 
-exports.createSubAccount = async (req, res, next) => {
+export const createSubAccount = async (req, res, next) => {
     const { friendlyName, userId } = req.body;
 
     try {
-        const subAccount = await twilioService.createSubAccount(friendlyName, userId);
+        const subAccount = await twilioService.createFullSubAccount(friendlyName, userId);
         res.status(201).json(subAccount);
     } catch (error) {
         next(error);
     }
 };
 
-exports.listSubAccounts = async (req, res, next) => {
+export const listSubAccounts = async (req, res, next) => {
     try {
         const accounts = await twilioService.listSubAccounts();
         res.status(200).json(accounts);
@@ -77,7 +77,7 @@ exports.listSubAccounts = async (req, res, next) => {
 };
 
 
-exports.suspendSubAccount = async (req, res, next) => {
+export const suspendSubAccount = async (req, res, next) => {
     const { subAccountSid } = req.body;
 
     if (!subAccountSid) {
@@ -92,7 +92,7 @@ exports.suspendSubAccount = async (req, res, next) => {
     }
 };
 
-exports.reactivateSubAccount = async (req, res, next) => {
+export const reactivateSubAccount = async (req, res, next) => {
     const { subAccountSid } = req.body;
 
     try {
@@ -103,7 +103,7 @@ exports.reactivateSubAccount = async (req, res, next) => {
     }
 };
 
-exports.closeSubAccount = async (req, res, next) => {
+export const closeSubAccount = async (req, res, next) => {
     const { subAccountSid } = req.body;
 
     try {
@@ -114,7 +114,7 @@ exports.closeSubAccount = async (req, res, next) => {
     }
 };
 
-exports.purchasePhoneNumber = async (req, res, next) => {
+export const purchasePhoneNumber = async (req, res, next) => {
     const { phoneNumber, subAccountSid, voiceUrl, smsUrl, userId } = req.body;
 
     if (!phoneNumber) {
@@ -136,7 +136,7 @@ exports.purchasePhoneNumber = async (req, res, next) => {
     }
 };
 
-exports.listPhoneNumbers = async (req, res, next) => {
+export const listPhoneNumbers = async (req, res, next) => {
     try {
         const numbers = await twilioService.listPhoneNumbers(req.query.userId); // optional filter
         res.status(200).json(numbers);
@@ -145,7 +145,7 @@ exports.listPhoneNumbers = async (req, res, next) => {
     }
 };
 
-exports.getPhoneNumberBySid = async (req, res, next) => {
+export const getPhoneNumberBySid = async (req, res, next) => {
     const { sid } = req.params;
 
     try {
@@ -161,7 +161,7 @@ exports.getPhoneNumberBySid = async (req, res, next) => {
 };
 
 
-exports.releasePhoneNumber = async (req, res, next) => {
+export const releasePhoneNumber = async (req, res, next) => {
     const { sid } = req.params;
 
     try {
@@ -172,7 +172,7 @@ exports.releasePhoneNumber = async (req, res, next) => {
     }
 };
 
-exports.assignNumber = async (req, res, next) => {
+export const assignNumber = async (req, res, next) => {
     try {
         const { phoneSid, sipUsername, sipDomain } = req.body;
         const result = await twilioService.assignPhoneNumberToSip({ phoneSid, sipUsername, sipDomain });
@@ -187,7 +187,7 @@ exports.assignNumber = async (req, res, next) => {
     }
 };
 
-exports.deassignNumber = async (req, res, next) => {
+export const deassignNumber = async (req, res, next) => {
     try {
         const { phoneSid } = req.body;
         const result = await twilioService.deassignPhoneNumber(phoneSid);

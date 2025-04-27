@@ -1,7 +1,8 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
-exports.verifyTelegramSignature = (data, botToken) => {
+export const verifyTelegramSignature = (data, botToken) => {
   const { hash, ...fields } = data;
+
   const sorted = Object.keys(fields)
     .sort()
     .map(k => `${k}=${fields[k]}`)

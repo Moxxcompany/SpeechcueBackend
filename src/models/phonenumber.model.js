@@ -1,4 +1,4 @@
-module.exports = (sequelize, DataTypes) => {
+export default (sequelize, DataTypes) => {
     const PhoneNumber = sequelize.define('phone_number', {
         phoneNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
         friendlyName: DataTypes.STRING,

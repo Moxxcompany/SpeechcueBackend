@@ -1,6 +1,8 @@
-require('dotenv').config();
-const app = require('./app');
-const logger = require('./config/logger');
+import dotenv from 'dotenv';
+dotenv.config();
+
+import app from './app.js';
+import logger from './config/logger.js';
 
 const PORT = process.env.PORT || 8888;
 

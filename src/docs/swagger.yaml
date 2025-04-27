@@ -585,6 +585,251 @@ paths:
         200:
           description: Number released
 
+  /api/freepbx/extensions/create:
+    post:
+      summary: Create FreePBX Extension
+      tags: [FreePBX]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - extensionId
+                - password
+                - displayname
+                - name
+                - email
+              properties:
+                extensionId:
+                  type: string
+                  example: "1001"
+                password:
+                  type: string
+                  example: "securepassword123"
+                displayname:
+                  type: string
+                  example: "Hemang IVR"
+                name:
+                  type: string
+                  example: "Hemang"
+                email:
+                  type: string
+                  format: email
+                  example: "hemang@example.com"
+      responses:
+        201:
+          description: Extension created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Extension created successfully
+                  extension:
+                    type: object
+                    properties:
+                      extensionId:
+                        type: string
+                        example: "1001"
+                      displayname:
+                        type: string
+                        example: "Hemang IVR"
+                      tech:
+                        type: string
+                        example: "pjsip"
+        500:
+          description: Failed to create extension
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to create extension
+
+  /api/ivrs:
+    post:
+      summary: Create a new IVR flow
+      tags: [IVRs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - flow
+                - userId
+              properties:
+                userId:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: "Main Support IVR"
+                description:
+                  type: string
+                  example: "Basic routing for customer service"
+                flow:
+                  type: object
+                  example:
+                    nodes:
+                      - id: "1"
+                        type: "start"
+                        data:
+                          label: "Welcome"
+                        position:
+                          x: 0
+                          y: 0
+                    edges:
+                      - id: "e1-2"
+                        source: "1"
+                        target: "2"
+                        type: "smoothstep"
+      responses:
+        "201":
+          description: IVR created
+        "500":
+          description: Server error
+
+    get:
+      summary: Get all IVRs by userId
+      tags: [IVRs]
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of IVRs
+        "500":
+          description: Server error
+
+  /api/ivrs/{id}:
+    get:
+      summary: Get IVR by ID (with userId check)
+      tags: [IVRs]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: IVR found
+        "404":
+          description: Not found
+        "500":
+          description: Server error
+
+    put:
+      summary: Update IVR by ID
+      tags: [IVRs]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ userId ]
+              properties:
+                userId:
+                  type: integer
+                name:
+                  type: string
+                description:
+                  type: string
+                flow:
+                  type: object
+      responses:
+        "200":
+          description: IVR updated
+        "404":
+          description: Not found
+        "500":
+          description: Server error
+
+    delete:
+      summary: Delete IVR by ID
+      tags: [IVRs]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: IVR deleted
+        "404":
+          description: Not found
+        "500":
+          description: Server error
+
+  /api/test-ivr/{ivrId}:
+    post:
+      summary: Manually test and simulate an IVR flow without real call
+      tags:
+        - Test
+      parameters:
+        - in: path
+          name: ivrId
+          required: true
+          schema:
+            type: integer
+          description: ID of the IVR you want to simulate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: integer
+                  example: 1
+      responses:
+        "200":
+          description: Successfully simulated IVR flow
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: IVR executed (simulated)
+        "404":
+          description: IVR not found
+        "500":
+          description: Server error
 
 tags:
   - name: Users
@@ -593,3 +838,9 @@ tags:
     description: Authentication endpoints
   - name: Twilio
     description: Twilio phone number management APIs
+  - name: FreePBX
+    description: Manage FreePBX resources like extensions
+  - name: IVRs
+    description: Manage IVR flows created by users
+  - name: Test
+    description: Test and simulate IVR flows without real calls

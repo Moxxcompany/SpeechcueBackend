@@ -1,7 +1,7 @@
-const bcrypt = require('bcrypt');
-const db = require('../models');
-const { generateJwt } = require('../utils/jwt');
-const { verifyTelegramSignature } = require('../utils/verifyTelegram');
+import bcrypt from 'bcrypt';
+import db from '../models/index.js';
+import { generateJwt } from '../utils/jwt.js';
+import { verifyTelegramSignature } from '../utils/verifyTelegram.js';
 
 const User = db.users;
 
@@ -11,7 +11,7 @@ const User = db.users;
  * - Compares hashed passwords using bcrypt
  * - Returns a JWT token if valid
  */
-exports.webLogin = async (req, res) => {
+export const webLogin = async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ where: { email } });
@@ -31,7 +31,7 @@ exports.webLogin = async (req, res) => {
  * - Creates a new user if one doesn't exist
  * - Returns a JWT token
  */
-exports.telegramMiniAuth = async (req, res) => {
+export const telegramMiniAuth = async (req, res) => {
   const data = req.body;
 
   // Validate the authenticity of Telegram-signed payload
@@ -61,7 +61,7 @@ exports.telegramMiniAuth = async (req, res) => {
  * - Auto-registers user if not found
  * - Returns a session JWT token
  */
-exports.telegramBotAuth = async (req, res) => {
+export const telegramBotAuth = async (req, res) => {
   const { telegramId, name } = req.body;
 
   if (!telegramId) {

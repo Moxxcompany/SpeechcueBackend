@@ -1,8 +1,18 @@
-const express = require('express');
+import express from 'express';
+import * as twilioController from '../controllers/twilio.controller.js';
+import {
+  validateAvailableNumbers,
+  validateRegions,
+  validateSubAccountCreate,
+  validateSubAccountSid,
+  validatePhoneNumberPurchase,
+  validateSid,
+  validateUserId,
+  validateSidParam
+} from '../validators/twilio.validators.js';
+import validate from '../middlewares/validate.js';
+
 const router = express.Router();
-const twilioController = require('../controllers/twilio.controller');
-const { validateAvailableNumbers, validateRegions, validateSubAccountCreate, validateSubAccountSid, validatePhoneNumberPurchase, validateSid, validateUserId, validateSidParam } = require('../validators/twilio.validators');
-const validate = require('../middlewares/validate');
 
 router.get('/countries', twilioController.listCountries);
 
@@ -34,5 +44,4 @@ router.delete('/numbers/:sid', validateSid, validate, twilioController.releasePh
 
 // router.post('/deassign-number', authenticate, validateDeassignNumber, validate, controller.deassignNumber);
 
-
-module.exports = router;
+export default router;

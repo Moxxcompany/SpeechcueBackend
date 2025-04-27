@@ -1,13 +1,18 @@
-const express = require('express');
-const cors = require('cors');
-const db = require('./models');
-const swaggerSetup = require('./config/swagger');
-const errorHandler = require('./middlewares/errorHandler');
-const notFound = require('./middlewares/notFound');
-const userRoutes = require('./routes/user.routes');
-const authRoutes = require('./routes/auth.routes');
-const twilioRoutes = require('./routes/twilio.routes');
-
+import express from 'express';
+import cors from 'cors';
+import db from './models/index.js';
+import swaggerSetup from './config/swagger.js';
+import errorHandler from './middlewares/errorHandler.js';
+import notFound from './middlewares/notFound.js';
+import userRoutes from './routes/user.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import twilioRoutes from './routes/twilio.routes.js';
+import freepbxRoutes from './routes/freepbx.routes.js';
+import ivrRoutes from './routes/ivr.routes.js';
+import testRoutes from './routes/test.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
+// import { startARIClient } from './ari/ariClient.js';
+import * as ariClient from './ari/ariClient.js';
 
 const app = express();
 
@@ -18,9 +23,16 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/twilio', twilioRoutes);
+app.use('/api/freepbx', freepbxRoutes);
+app.use('/api/ivrs', ivrRoutes);
+app.use('/api/voice', voiceRoutes);
+app.use('/api', testRoutes);
 
 // Swagger Docs
 swaggerSetup(app);
+
+// Start ARI client (connects to Asterisk)
+// startARIClient();
 
 // 404 and error handler
 app.use(notFound);
@@ -29,4 +41,4 @@ app.use(errorHandler);
 // Sequelize Sync
 db.sequelize.sync().then(() => console.log('🟢 DB Synced'));
 
-module.exports = app;
+export default app; 

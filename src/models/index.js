@@ -1,6 +1,13 @@
-const Sequelize = require('sequelize');
-const config = require('../config/db.config');
-const logger = require('../config/logger');
+import Sequelize from 'sequelize';
+import config from '../config/db.config.js';
+import logger from '../config/logger.js';
+
+import defineUser from './user.model.js';
+import defineSubAccount from './subaccount.model.js';
+import definePhoneNumber from './phonenumber.model.js';
+import defineSipDomain from './sipdomain.model.js';
+import defineSipCredential from './sipcredential.model.js';
+import defineIVR from './ivr.model.js'; 
 
 const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
     host: config.HOST,
@@ -10,11 +17,12 @@ const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
 });
 
 // Initialize models 
-const User = require('./user.model')(sequelize, Sequelize.DataTypes);
-const SubAccount = require('./subaccount.model')(sequelize, Sequelize.DataTypes);
-const PhoneNumber = require('./phonenumber.model')(sequelize, Sequelize.DataTypes);
-const SipDomain = require('./sipdomain.model')(sequelize, Sequelize.DataTypes);
-const SipCredential = require('./sipcredential.model')(sequelize, Sequelize.DataTypes);
+const User = defineUser(sequelize, Sequelize.DataTypes);
+const SubAccount = defineSubAccount(sequelize, Sequelize.DataTypes);
+const PhoneNumber = definePhoneNumber(sequelize, Sequelize.DataTypes);
+const SipDomain = defineSipDomain(sequelize, Sequelize.DataTypes);
+const SipCredential = defineSipCredential(sequelize, Sequelize.DataTypes);
+const IVR = defineIVR(sequelize, Sequelize.DataTypes);
 
 // associations
 User.hasOne(SubAccount, { foreignKey: 'userId' });
@@ -29,12 +37,17 @@ SipCredential.belongsTo(User, { foreignKey: 'userId' });
 User.hasOne(PhoneNumber, { foreignKey: 'userId' });
 PhoneNumber.belongsTo(User, { foreignKey: 'userId' });
 
-module.exports = {
+IVR.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(IVR, { foreignKey: 'userId' });
+
+
+export default {
   Sequelize,
   sequelize,
   User,
   SubAccount,
   PhoneNumber,
   SipDomain,
-  SipCredential
+  SipCredential,
+  IVR
 };

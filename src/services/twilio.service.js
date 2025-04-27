@@ -1,13 +1,22 @@
-const client = require('../config/twilio');
-const logger = require('../config/logger');
-const { sequelize, User, SubAccount, PhoneNumber, SipDomain, SipCredential } = require('../models');
-const twilio = require('twilio');
-const { encrypt } = require('../utils/encryption');
+import twilio from 'twilio';
+import client from '../config/twilio.js';
+import logger from '../config/logger.js';
+import { decrypt, encrypt } from '../utils/encryption.js';
+import models from '../models/index.js';
+
+const {
+    sequelize,
+    User,
+    SubAccount,
+    PhoneNumber,
+    SipDomain,
+    SipCredential
+} = models;
 
 /**
  * Fetch country list available for phone number provisioning
  */
-exports.fetchCountryList = async () => {
+export const fetchCountryList = async () => {
     try {
         const result = await client.pricing.v1.phoneNumbers.countries.list();
 
@@ -24,13 +33,14 @@ exports.fetchCountryList = async () => {
     }
 };
 
-exports.getAvailableNumberTypes = async (isoCountry) => {
+export const getAvailableNumberTypes = async (isoCountry) => {
     const types = [];
 
     // Try Local
     try {
         const local = await client.availablePhoneNumbers(isoCountry).local.list({ limit: 1 });
         if (local.length > 0) types.push('local');
+        console.log('local', local);
     } catch (err) {
         logger.warn(`Local not available for ${isoCountry}: ${err.message}`);
     }
@@ -39,6 +49,7 @@ exports.getAvailableNumberTypes = async (isoCountry) => {
     try {
         const mobile = await client.availablePhoneNumbers(isoCountry).mobile.list({ limit: 1 });
         if (mobile.length > 0) types.push('mobile');
+        console.log('mobile', mobile);
     } catch (err) {
         logger.warn(`Mobile not available for ${isoCountry}: ${err.message}`);
     }
@@ -47,6 +58,7 @@ exports.getAvailableNumberTypes = async (isoCountry) => {
     try {
         const tollFree = await client.availablePhoneNumbers(isoCountry).tollFree.list({ limit: 1 });
         if (tollFree.length > 0) types.push('tollFree');
+        console.log('tollFree', tollFree);
     } catch (err) {
         logger.warn(`TollFree not available for ${isoCountry}: ${err.message}`);
     }
@@ -55,7 +67,7 @@ exports.getAvailableNumberTypes = async (isoCountry) => {
 };
 
 
-exports.getRegionsByType = async ({ isoCountry, type, page = 1, limit = 20 }) => {
+export const getRegionsByType = async ({ isoCountry, type, page = 1, limit = 20 }) => {
     try {
         const options = { limit: 1000 };
 
@@ -77,6 +89,7 @@ exports.getRegionsByType = async ({ isoCountry, type, page = 1, limit = 20 }) =>
             default:
                 throw new Error('Invalid number type. Must be local, mobile, or tollFree.');
         }
+        console.log('numbers', numbers);
 
         const regions = numbers
             .map(num => ({
@@ -108,7 +121,7 @@ exports.getRegionsByType = async ({ isoCountry, type, page = 1, limit = 20 }) =>
     }
 };
 
-exports.searchAvailableNumbers = async ({ country, type, region, locality, limit = 20 }) => {
+export const searchAvailableNumbers = async ({ country, type, region, locality, limit = 20 }) => {
     try {
         const options = { limit: parseInt(limit) };
 
@@ -142,36 +155,36 @@ exports.searchAvailableNumbers = async ({ country, type, region, locality, limit
     }
 };
 
-exports.createSubAccount = async (friendlyName, userId) => {
-    try {
-        const subAccount = await client.api.accounts.create({ friendlyName });
+// export const createSubAccount = async (friendlyName, userId) => {
+//     try {
+//         const subAccount = await client.api.accounts.create({ friendlyName });
 
-        logger.info(`Created Twilio subaccount: ${subAccount.sid}`);
+//         logger.info(`Created Twilio subaccount: ${subAccount.sid}`);
 
-        // For Register: const subAccount = await createSubAccount(`User-${user.id}-${user.name}`, user.id);
+//         // For Register: const subAccount = await createSubAccount(`User-${user.id}-${user.name}`, user.id);
 
-        await SubAccount.create({
-            sid: subAccount.sid,
-            friendlyName: subAccount.friendlyName,
-            authToken: subAccount.authToken,
-            status: subAccount.status,
-            dateCreated: subAccount.dateCreated,
-            userId
-        });
+//         await SubAccount.create({
+//             sid: subAccount.sid,
+//             friendlyName: subAccount.friendlyName,
+//             authToken: subAccount.authToken,
+//             status: subAccount.status,
+//             dateCreated: subAccount.dateCreated,
+//             userId
+//         });
 
-        return {
-            sid: subAccount.sid,
-            authToken: subAccount.authToken,
-            status: subAccount.status,
-            dateCreated: subAccount.dateCreated,
-        };
-    } catch (error) {
-        logger.error(`Failed to create subaccount: ${error.message}`);
-        throw error;
-    }
-};
+//         return {
+//             sid: subAccount.sid,
+//             authToken: subAccount.authToken,
+//             status: subAccount.status,
+//             dateCreated: subAccount.dateCreated,
+//         };
+//     } catch (error) {
+//         logger.error(`Failed to create subaccount: ${error.message}`);
+//         throw error;
+//     }
+// };
 
-exports.createFullSubAccount = async (friendlyName, userId) => {
+export const createFullSubAccount = async (friendlyName, userId) => {
     const created = {};
     const transaction = await sequelize.transaction();
 
@@ -227,7 +240,7 @@ exports.createFullSubAccount = async (friendlyName, userId) => {
             .credentials
             .create({ username, password });
         logger.info(`✅ SIP Credential created: username=${username}`);
-
+            
         await subClient
             .sip.domains(domain.sid)
             .credentialListMappings
@@ -282,7 +295,7 @@ exports.createFullSubAccount = async (friendlyName, userId) => {
     }
 };
 
-exports.listSubAccounts = async () => {
+export const listSubAccounts = async () => {
     try {
         const accounts = await client.api.accounts.list({ limit: 50 }); // Adjust limit if needed
 
@@ -301,7 +314,7 @@ exports.listSubAccounts = async () => {
     }
 };
 
-exports.suspendSubAccount = async (sid) => {
+export const suspendSubAccount = async (sid) => {
     try {
         const result = await client.api.accounts(sid).update({ status: 'suspended' });
         logger.info(`Suspended Twilio subaccount: ${sid}`);
@@ -317,7 +330,7 @@ exports.suspendSubAccount = async (sid) => {
     }
 };
 
-exports.reactivateSubAccount = async (sid) => {
+export const reactivateSubAccount = async (sid) => {
     try {
         const result = await client.api.accounts(sid).update({ status: "active" });
         logger.info(`Reactivated Twilio subaccount: ${sid}`);
@@ -333,7 +346,7 @@ exports.reactivateSubAccount = async (sid) => {
     }
 };
 
-exports.closeSubAccount = async (sid) => {
+export const closeSubAccount = async (sid) => {
     try {
         const result = await client.api.accounts(sid).update({ status: 'closed' });
         logger.info(`Closed Twilio subaccount: ${sid}`);
@@ -356,57 +369,71 @@ exports.closeSubAccount = async (sid) => {
     }
 };
 
-
-exports.purchasePhoneNumber = async ({ phoneNumber, subAccountSid, voiceUrl, smsUrl, userId }) => {
+export const purchasePhoneNumber = async ({ phoneNumber, subAccountSid, voiceUrl, smsUrl, userId, addressSid }) => {
     try {
-        const isTest = process.env.TWILIO_ENV === 'test';
-
-        const accountSid = isTest ? process.env.TWILIO_TEST_ACCOUNT_SID : subAccountSid;
-
-        const authToken = isTest ? process.env.TWILIO_TEST_AUTH_TOKEN : subAccountSid;
-
-        const client = twilio(accountSid, authToken);
-
-        const options = { phoneNumber };
-        if (voiceUrl) options.voiceUrl = voiceUrl;
-        if (smsUrl) options.smsUrl = smsUrl;
-
-        const purchased = await client.incomingPhoneNumbers.create(options);
-
-        await PhoneNumber.create({
-            phoneNumber: purchased?.phoneNumber,
-            friendlyName: purchased?.friendlyName,
-            isoCountry: purchased?.isoCountry,
-            capabilities: purchased?.capabilities,
-            voiceUrl,
-            smsUrl,
-            userId,
-            subAccountSid,
-            sid: purchased.sid
-        });
-
-        return {
-            sid: purchased.sid,
-            phoneNumber: purchased.phoneNumber,
-            friendlyName: purchased.friendlyName,
-            isoCountry: purchased.isoCountry,
-            capabilities: purchased.capabilities
-        };
+      const isTest = process.env.TWILIO_ENV === 'test';
+  
+      let accountSid, authToken;
+  
+      if (isTest) {
+        accountSid = process.env.TWILIO_TEST_ACCOUNT_SID;
+        authToken = process.env.TWILIO_TEST_AUTH_TOKEN;
+      } else {
+        const subAccount = await SubAccount.findOne({ where: { sid: subAccountSid } });
+  
+        if (!subAccount) {
+          throw new Error('SubAccount not found');
+        }
+  
+        accountSid = subAccount.sid;
+        authToken = decrypt(subAccount.authToken);
+      }
+  
+      const client = twilio(accountSid, authToken);
+  
+      const options = { phoneNumber };
+      if (voiceUrl) options.voiceUrl = voiceUrl;
+      if (smsUrl) options.smsUrl = smsUrl;
+      if (addressSid) options.addressSid = addressSid; // 🔥 Add AddressSid support
+  
+      const purchased = await client.incomingPhoneNumbers.create(options);
+  
+      await PhoneNumber.create({
+        phoneNumber: purchased?.phoneNumber,
+        friendlyName: purchased?.friendlyName,
+        isoCountry: purchased?.isoCountry,
+        capabilities: purchased?.capabilities,
+        voiceUrl,
+        smsUrl,
+        userId,
+        subAccountSid,
+        sid: purchased.sid
+      });
+  
+      return {
+        sid: purchased.sid,
+        phoneNumber: purchased.phoneNumber,
+        friendlyName: purchased.friendlyName,
+        isoCountry: purchased.isoCountry,
+        capabilities: purchased.capabilities
+      };
+  
     } catch (err) {
-        throw new Error(`Failed to purchase number: ${err.message}`);
+      console.error('❌ Error purchasing phone number:', err);
+      throw new Error(`Failed to purchase number: ${err.message}`);
     }
-};
-
-exports.listPhoneNumbers = async (userId) => {
+  };
+  
+export const listPhoneNumbers = async (userId) => {
     const where = userId ? { userId } : {};
     return await PhoneNumber.findAll({ where });
 };
 
-exports.getPhoneNumberBySid = async (sid) => {
+export const getPhoneNumberBySid = async (sid) => {
     return await PhoneNumber.findOne({ where: { sid } });
 };
 
-exports.releasePhoneNumber = async (sid) => {
+export const releasePhoneNumber = async (sid) => {
     const number = await client.incomingPhoneNumbers(sid).remove();
 
     // delete from DB 
@@ -415,7 +442,7 @@ exports.releasePhoneNumber = async (sid) => {
     return number;
 };
 
-exports.assignPhoneNumberToSip = async ({ phoneSid, sipUsername, sipDomain }) => {
+export const assignPhoneNumberToSip = async ({ phoneSid, sipUsername, sipDomain }) => {
     try {
         const sipUri = `sip:${sipUsername}@${sipDomain}`;
 
@@ -432,7 +459,7 @@ exports.assignPhoneNumberToSip = async ({ phoneSid, sipUsername, sipDomain }) =>
     }
 };
 
-exports.deassignPhoneNumber = async (phoneSid) => {
+export const deassignPhoneNumber = async (phoneSid) => {
     try {
         const updated = await client.incomingPhoneNumbers(phoneSid).update({
             voiceUrl: '',

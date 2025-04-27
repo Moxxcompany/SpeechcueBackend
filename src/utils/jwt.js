@@ -1,10 +1,12 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
 
-exports.generateJwt = (payload, expiresIn = '7d') => {
+dotenv.config();
+
+export const generateJwt = (payload, expiresIn = '7d') => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
-exports.verifyJwt = (token) => {
+export const verifyJwt = (token) => {
   return jwt.verify(token, process.env.JWT_SECRET);
 };

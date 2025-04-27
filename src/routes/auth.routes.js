@@ -1,9 +1,10 @@
-const express = require('express');
+import express from 'express';
+import * as authController from '../controllers/auth.controller.js';
+
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
 
 router.post('/web-login', authController.webLogin);
 router.post('/telegram-mini', authController.telegramMiniAuth);
 router.post('/telegram-bot', authController.telegramBotAuth);
 
-module.exports = router;
+export default router;

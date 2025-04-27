@@ -1,20 +1,20 @@
-const { query, param, body } = require('express-validator');
+import { query, param, body } from 'express-validator';
 
-exports.validateAvailableNumbers = [
+export const validateAvailableNumbers = [
     query('country').notEmpty().withMessage('country is required'),
     query('type')
         .notEmpty().withMessage('type is required')
         .isIn(['local', 'mobile', 'tollFree']).withMessage('type must be local, mobile, or tollFree'),
 ];
 
-exports.validateRegions = [
+export const validateRegions = [
     param('isoCountry').notEmpty().withMessage('isoCountry is required'),
     query('type')
         .notEmpty().withMessage('type is required')
         .isIn(['local', 'mobile', 'tollFree']).withMessage('type must be local, mobile, or tollFree'),
 ];
 
-exports.validateSubAccountCreate = [
+export const validateSubAccountCreate = [
     body('friendlyName')
         .notEmpty()
         .withMessage('friendlyName is required'),
@@ -23,29 +23,29 @@ exports.validateSubAccountCreate = [
         .withMessage('userId is required'),
 ];
 
-exports.validateSubAccountSid = [
+export const validateSubAccountSid = [
     body('subAccountSid')
         .notEmpty()
         .withMessage('subAccountSid is required')
 ];
 
-exports.validateSidParam = [
+export const validateSidParam = [
     param('sid')
         .notEmpty()
         .withMessage('sid is required')
 ];
 
-exports.validateSid = [
+export const validateSid = [
     body('sid')
         .notEmpty()
         .withMessage('sid is required')
 ];
 
-exports.validateUserId = [
+export const validateUserId = [
     query('userId').notEmpty().withMessage('userId is required')
 ]
 
-exports.validatePhoneNumberPurchase = [
+export const validatePhoneNumberPurchase = [
     body('phoneNumber')
         .notEmpty()
         .withMessage('phoneNumber is required'),
