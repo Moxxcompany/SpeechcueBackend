@@ -1,65 +1,282 @@
-import { request, gql } from 'graphql-request';
-import dotenv from 'dotenv';
+import { gql, request } from 'graphql-request';
 import logger from '../config/logger.js';
 import fetch from 'node-fetch';
-dotenv.config();
+import db from '../models/index.js';
+const { Extension, User } = db;
 
 const endpoint = process.env.FREEPBX_GRAPHQL_ENDPOINT;
 const tokenUrl = process.env.FREEPBX_TOKEN_URL;
 const clientId = process.env.FREEPBX_CLIENT_ID;
 const clientSecret = process.env.FREEPBX_CLIENT_SECRET;
-const scope = process.env.FREEPBX_SCOPE || 'all';
 
-export const createExtension = async ({ extensionId, password, displayname, name, email }) => {
+async function getAccessToken() {
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    logger.error(`❌ Token fetch failed: ${JSON.stringify(data)}`);
+    throw new Error(data.error_description || 'Token fetch failed');
+  }
+
+  return data.access_token;
+}
+
+export const createExtension = async ({ userId, displayname, email }) => {
+
+  const user = await User.findByPk(userId);
+  if (!user) throw new Error('User not found');
+  // Get next available extensionId
+  const lastExtension = await Extension.findOne({ order: [['extensionId', 'DESC']] });
+  const nextExtensionId = lastExtension ? lastExtension.extensionId + 1 : 1010;
+
   const mutation = gql`
     mutation {
-      createExtension(input: {
+      addExtension(input: {
+        extensionId: "${nextExtensionId}",
         tech: "pjsip",
-        extensionId: "${extensionId}",
-        password: "${password}",
-        displayname: "${displayname}",
-        user: { name: "${name}", email: "${email}" }
+        name: "${displayname}",
+        email: "${email}"
       }) {
-        extension {
-          extensionId
-          displayname
-          tech
-        }
+        status
+        message
       }
     }
   `;
 
   try {
     // Step 1: Fetch Access Token
-    const tokenRes = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret,
-        scope
-      })
-    });
+    const token = await getAccessToken();
 
-    const tokenData = await tokenRes.json();
-
-    if (!tokenRes.ok) {
-      logger.error(`❌ Failed to get FreePBX token: ${JSON.stringify(tokenData)}`);
-      throw new Error(tokenData.error_description || 'Unable to fetch FreePBX token');
-    }
-
-    const token = tokenData.access_token;
-
-    // Step 2: Perform GraphQL mutation
-    const data = await request(endpoint, mutation, {}, {
+    // Step 2: Call FreePBX GraphQL
+    const res = await request(endpoint, mutation, {}, {
       Authorization: `Bearer ${token}`
     });
 
-    logger.info(`✅ FreePBX extension created: ${extensionId}`);
-    return data.createExtension.extension;
+    console.log("###res.addExtension?.status", res?.addExtension?.status)
+    if (!res?.addExtension?.status) {
+      throw new Error(res?.addExtension?.message || 'Failed to create extension on FreePBX');
+    }
+
+    // Step 3: Save in PostgreSQL
+    const saved = await Extension.create({
+      userId,
+      extensionId: nextExtensionId,
+      displayname,
+      email
+    });
+
+    logger.info(`✅ Extension created and stored: ${nextExtensionId}`);
+    return saved;
+
   } catch (err) {
-    logger.error(`❌ Failed to create FreePBX extension: ${err.message}`);
+    logger.error(`❌ Error in createExtension: ${err.message}`);
+    throw err;
+  }
+};
+
+export const getAllExtensions = async (userId) => {
+  const user = await User.findByPk(userId);
+  if (!user) throw new Error('User not found');
+
+  const dbExtensions = await Extension.findAll({ where: { userId }, raw: true });
+  if (!dbExtensions.length) return [];
+
+  const token = await getAccessToken();
+
+
+  const gqlQuery = gql`
+    query {
+      fetchAllExtensions {
+        count
+        totalCount
+        status
+        message
+        edges {
+          cursor
+          node {
+            id
+            extensionId
+            tech
+          }
+        }
+        extension {
+          extensionId
+          tech
+          id
+          tech
+          user {
+            id
+            extension
+            name
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await request(endpoint, gqlQuery, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  const allRemote = data?.fetchAllExtensions?.extension || [];
+
+  // Get just the extensionIds this user owns
+  const userExtensionIds = dbExtensions.map(ext => ext.extensionId);
+
+  // Filter and enrich with DB info
+  const result = allRemote
+    .filter(remote => userExtensionIds.includes(parseInt(remote.extensionId)))
+    .map(remote => {
+      const dbData = dbExtensions.find(db => db.extensionId === parseInt(remote.extensionId));
+      return {
+        ...remote,
+        displayname: dbData?.displayname,
+        email: dbData?.email,
+        createdAt: dbData?.createdAt,
+        updatedAt: dbData?.updatedAt
+      };
+    });
+
+  return { result, totalCount: result.length };
+};
+
+export const getExtensionById = async (id, userId) => {
+  const user = await User.findByPk(userId);
+  if (!user) throw new Error('User not found');
+
+  const dbExtension = await Extension.findOne({ where: { extensionId: id, userId }, raw: true });
+  if (!dbExtension) return null;
+
+  const token = await getAccessToken();
+
+  const gqlQuery = gql`
+    query {
+      fetchExtension(extensionId: "${id}") {
+        extensionId
+        tech
+        id
+        user {
+          id
+          extension
+          name
+        }
+      }
+    }
+  `;
+
+  const data = await request(endpoint, gqlQuery, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  const remote = data?.fetchExtension;
+  if (!remote) return null;
+
+  // Merge remote with local DB values
+  return {
+    ...remote,
+    displayname: dbExtension.displayname,
+    email: dbExtension.email,
+    createdAt: dbExtension.createdAt,
+    updatedAt: dbExtension.updatedAt
+  };
+};
+
+export const updateExtension = async (id, input, userId) => {
+  const user = await User.findByPk(userId);
+  if (!user) throw new Error('User not found');
+
+  const dbExtension = await Extension.findOne({ where: { extensionId: id, userId } });
+  if (!dbExtension) throw new Error('Extension not found or access denied');
+
+  const mutation = gql`
+    mutation {
+      updateExtension(input: {
+        extensionId: "${id}",
+        name: "${input.displayname}",
+        email: "${input.email}"
+      }) {
+        status
+        message
+      }
+    }
+  `;
+
+  const token = await getAccessToken();
+  const data = await request(endpoint, mutation, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  if (!data.updateExtension?.status) {
+    throw new Error(data.updateExtension?.message || 'Failed to update FreePBX extension');
+  }
+
+  // Update local DB
+  const updated = await dbExtension.update({
+    displayname: input.displayname,
+    email: input.email
+  });
+
+  return {
+    ...data.updateExtension,
+    extension: updated
+  };
+};
+
+export const deleteExtension = async (id, userId) => {
+  try {
+
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error('User not found');
+
+    // Step 1: Check if extension exists in local DB
+    const extension = await Extension.findOne({
+      where: { extensionId: id, userId }
+    });
+
+    console.log('DB Extension:', extension, { id, userId });
+    if (!extension) {
+      logger.warn(`⚠️ Extension ${id} not found for user ${userId} in local DB`);
+      throw new Error('Extension not found or access denied');
+    }
+
+    // Step 2: Delete from FreePBX 
+    const mutation = gql`
+      mutation DeleteExtension($input: deleteExtensionInput!) {
+        deleteExtension(input: $input) {
+          status
+          message
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        extensionId: parseInt(id)
+      }
+    };
+
+    const token = await getAccessToken();
+    const data = await request(endpoint, mutation, variables, {
+      Authorization: `Bearer ${token}`
+    });
+
+    logger.info(`✅ Deleted extension ${id} from FreePBX`);
+
+    // Step 3: Delete from local DB
+    await extension.destroy();
+    logger.info(`🗑️ Deleted extension ${id} from local DB`);
+
+    return data.deleteExtension;
+  } catch (err) {
+    logger.error(`❌ Failed to delete extension ${id}: ${err.message}`);
     throw err;
   }
 };

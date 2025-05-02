@@ -587,7 +587,8 @@ paths:
 
   /api/freepbx/extensions/create:
     post:
-      summary: Create FreePBX Extension
+      summary: Create a new FreePBX extension
+      description: Creates an extension in FreePBX using GraphQL, stores it in the local DB, and associates it with a user.
       tags: [FreePBX]
       requestBody:
         required: true
@@ -596,30 +597,22 @@ paths:
             schema:
               type: object
               required:
-                - extensionId
-                - password
+                - userId
                 - displayname
-                - name
                 - email
               properties:
-                extensionId:
-                  type: string
-                  example: "1001"
-                password:
-                  type: string
-                  example: "securepassword123"
+                userId:
+                  type: integer
+                  example: 42
+                  description: ID of the user creating the extension
                 displayname:
                   type: string
-                  example: "Hemang IVR"
-                name:
-                  type: string
-                  example: "Hemang"
+                  example: "Agent John"
                 email:
                   type: string
-                  format: email
-                  example: "hemang@example.com"
+                  example: "john@example.com"
       responses:
-        201:
+        '201':
           description: Extension created successfully
           content:
             application/json:
@@ -632,17 +625,32 @@ paths:
                   extension:
                     type: object
                     properties:
+                      id:
+                        type: integer
+                        example: 1
                       extensionId:
-                        type: string
-                        example: "1001"
+                        type: integer
+                        example: 1001
+                      userId:
+                        type: integer
+                        example: 42
                       displayname:
                         type: string
-                        example: "Hemang IVR"
+                        example: "Agent John"
+                      email:
+                        type: string
+                        example: "john@example.com"
                       tech:
                         type: string
                         example: "pjsip"
-        500:
-          description: Failed to create extension
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+        '400':
+          description: Bad request or FreePBX failure
           content:
             application/json:
               schema:
@@ -650,7 +658,114 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: Failed to create extension
+                  message:
+                    type: string
+        '500':
+          description: Server error
+
+  /api/freepbx/extensions:
+    get:
+      summary: Get all extensions for the authenticated user
+      tags: [FreePBX]
+      parameters:
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: User ID to filter extensions
+      responses:
+        '200':
+          description: List of extensions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  extensions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Extension'
+
+  /api/freepbx/extensions/{id}:
+    get:
+      summary: Get extension by ID (restricted to user)
+      tags: [FreePBX]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: User ID to filter extensions
+      responses:
+        '200':
+          description: Extension details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extension'
+        '404':
+          description: Extension not found
+
+    put:
+      summary: Update extension by ID (FreePBX + Local DB)
+      tags: [FreePBX]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayname:
+                  type: string
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Extension updated successfully
+        '400':
+          description: Validation error or missing fields
+        '404':
+          description: Extension not found or user unauthorized
+
+
+    delete:
+      summary: Delete extension by ID (restricted to user)
+      tags: [FreePBX]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: User ID to filter extensions
+      responses:
+        '200':
+          description: Extension deleted successfully
 
   /api/ivrs:
     post:

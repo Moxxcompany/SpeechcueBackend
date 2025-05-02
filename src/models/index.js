@@ -8,6 +8,7 @@ import definePhoneNumber from './phonenumber.model.js';
 import defineSipDomain from './sipdomain.model.js';
 import defineSipCredential from './sipcredential.model.js';
 import defineIVR from './ivr.model.js'; 
+import defineExtension from './extension.model.js';
 
 const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
     host: config.HOST,
@@ -23,6 +24,7 @@ const PhoneNumber = definePhoneNumber(sequelize, Sequelize.DataTypes);
 const SipDomain = defineSipDomain(sequelize, Sequelize.DataTypes);
 const SipCredential = defineSipCredential(sequelize, Sequelize.DataTypes);
 const IVR = defineIVR(sequelize, Sequelize.DataTypes);
+const Extension = defineExtension(sequelize, Sequelize.DataTypes);
 
 // associations
 User.hasOne(SubAccount, { foreignKey: 'userId' });
@@ -40,6 +42,8 @@ PhoneNumber.belongsTo(User, { foreignKey: 'userId' });
 IVR.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(IVR, { foreignKey: 'userId' });
 
+Extension.belongsTo(User, { foreignKey: 'userId' });
+
 
 export default {
   Sequelize,
@@ -49,5 +53,6 @@ export default {
   PhoneNumber,
   SipDomain,
   SipCredential,
-  IVR
+  IVR,
+  Extension
 };
