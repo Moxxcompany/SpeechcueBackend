@@ -11,8 +11,7 @@ import freepbxRoutes from './routes/freepbx.routes.js';
 import ivrRoutes from './routes/ivr.routes.js';
 import testRoutes from './routes/test.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
-// import { startARIClient } from './ari/ariClient.js';
-import * as ariClient from './ari/ariClient.js';
+import { startARIClient } from './ari/ariClient.js';
 
 const app = express();
 
@@ -32,7 +31,7 @@ app.use('/api', testRoutes);
 swaggerSetup(app);
 
 // Start ARI client (connects to Asterisk)
-// startARIClient();
+startARIClient();
 
 // 404 and error handler
 app.use(notFound);

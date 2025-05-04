@@ -40,8 +40,4 @@ router.get('/numbers/:sid', validateSidParam, validate, twilioController.getPhon
 
 router.delete('/numbers/:sid', validateSid, validate, twilioController.releasePhoneNumber);
 
-// router.post('/assign-number', authenticate, validateAssignNumber, validate, controller.assignNumber);
-
-// router.post('/deassign-number', authenticate, validateDeassignNumber, validate, controller.deassignNumber);
-
 export default router;

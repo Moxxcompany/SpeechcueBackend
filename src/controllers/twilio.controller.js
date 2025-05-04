@@ -171,32 +171,3 @@ export const releasePhoneNumber = async (req, res, next) => {
         next(err);
     }
 };
-
-export const assignNumber = async (req, res, next) => {
-    try {
-        const { phoneSid, sipUsername, sipDomain } = req.body;
-        const result = await twilioService.assignPhoneNumberToSip({ phoneSid, sipUsername, sipDomain });
-
-        res.status(200).json({
-            message: 'Phone number assigned to SIP domain',
-            phoneNumber: result.phoneNumber,
-            voiceUrl: result.voiceUrl
-        });
-    } catch (err) {
-        next(err);
-    }
-};
-
-export const deassignNumber = async (req, res, next) => {
-    try {
-        const { phoneSid } = req.body;
-        const result = await twilioService.deassignPhoneNumber(phoneSid);
-
-        res.status(200).json({
-            message: 'Phone number deassigned',
-            phoneNumber: result.phoneNumber
-        });
-    } catch (err) {
-        next(err);
-    }
-};

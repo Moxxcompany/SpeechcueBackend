@@ -24,7 +24,7 @@ export default (sequelize, DataTypes) => {
             allowNull: false,
         },
     }, {
-        tableName: 'ivrs',
+        tableName: 'ivr',
         timestamps: true,
     });
     return IVR;

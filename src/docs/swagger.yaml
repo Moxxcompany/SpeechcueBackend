@@ -945,6 +945,54 @@ paths:
           description: IVR not found
         "500":
           description: Server error
+  
+  /api/ivrs/assign-number:
+    post:
+      tags: [IVRs]
+      summary: Assign a phone number to an IVR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ivrId
+                - phoneNumberId
+              properties:
+                ivrId:
+                  type: integer
+                  example: 1
+                phoneNumberId:
+                  type: integer
+                  example: 10
+      responses:
+        200:
+          description: Number assigned successfully
+        404:
+          description: IVR or phone number not found
+
+  /api/ivrs/deassign-number:
+    post:
+      tags: [IVRs]
+      summary: Remove phone number from an IVR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumberId
+              properties:
+                phoneNumberId:
+                  type: integer
+                  example: 10
+      responses:
+        200:
+          description: Number deassigned successfully
+        404:
+          description: Phone number not found
 
 tags:
   - name: Users

@@ -71,4 +71,27 @@ export const deleteIVR = async (req, res, next) => {
         next(error);
     }
 };
-    
+
+export const assignNumberToIVR = async (req, res, next) => {
+    try {
+        const { ivrId, phoneNumberId } = req.body;
+        const assigned = await ivrService.assignNumberToIVR(ivrId, phoneNumberId);
+        if (!assigned) return res.status(404).json({ message: 'IVR or Phone Number not found' });
+
+        res.json({ message: 'Number assigned to IVR', data: assigned });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const deassignNumberFromIVR = async (req, res, next) => {
+    try {
+        const { phoneNumberId } = req.body;
+        const updated = await ivrService.deassignNumberFromIVR(phoneNumberId);
+        if (!updated) return res.status(404).json({ message: 'Phone Number not found' });
+
+        res.json({ message: 'Number deassigned from IVR', data: updated });
+    } catch (err) {
+        next(err);
+    }
+};

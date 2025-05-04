@@ -44,6 +44,8 @@ User.hasMany(IVR, { foreignKey: 'userId' });
 
 Extension.belongsTo(User, { foreignKey: 'userId' });
 
+IVR.hasMany(PhoneNumber, { foreignKey: 'ivrId' });
+PhoneNumber.belongsTo(IVR, { foreignKey: 'ivrId', as: 'ivr' });
 
 export default {
   Sequelize,
