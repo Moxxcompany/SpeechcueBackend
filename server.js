@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const PORT = 3000;
@@ -13,6 +14,9 @@ const upload = multer({ dest: '/tmp/' });
 if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
   fs.mkdirSync(ASTERISK_SOUNDS_DIR, { recursive: true });
 }
+
+// ✅ Allow all origins
+app.use(cors());
 
 app.post('/upload-audio', upload.single('audio'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
