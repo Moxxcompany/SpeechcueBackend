@@ -8,7 +8,7 @@ export async function getIVRFlowByPhoneNumber(phoneNum) {
       where: { phoneNumber: phoneNum },
       include: [{
         model: IVR,
-        as: 'ivr',
+        as: 'ivr', 
       }],
     });
 

@@ -6,7 +6,7 @@ export const createIVR = async (req, res, next) => {
         const { userId, name, description, flow } = req.body;
         if (!userId) return res.status(400).json({ message: 'User ID is required' });
 
-        const ivr = await ivrService.createIVR({ userId, name, description, flow });
+        const ivr = await ivrService.createIVRWithAudio({ userId, name, description, flow });
         res.status(201).json(ivr);
     } catch (error) {
         logger.error(`Create IVR failed: ${error.message}`);

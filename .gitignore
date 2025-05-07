@@ -29,3 +29,9 @@ docker-compose.override.yml
 
 # Build
 dist/
+
+# Credentials
+service-accounts/
+
+# Package lock file
+**/package-lock.json
