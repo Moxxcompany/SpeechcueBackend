@@ -2,12 +2,15 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const PORT = 3000;
 
 const ASTERISK_SOUNDS_DIR = '/var/lib/asterisk/sounds/custom';
 const upload = multer({ dest: '/tmp/' });
+
+app.use(cors());
 
 // Ensure Asterisk sound dir exists
 if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
