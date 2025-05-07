@@ -10,7 +10,7 @@ const PORT = 3000;
 const ASTERISK_SOUNDS_DIR = '/var/lib/asterisk/sounds/custom';
 const upload = multer({ dest: '/tmp/' });
 
-app.use(cors());
+app.use(cors())
 
 // Ensure Asterisk sound dir exists
 if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
