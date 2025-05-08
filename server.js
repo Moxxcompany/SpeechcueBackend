@@ -11,7 +11,6 @@ const ASTERISK_SOUNDS_DIR = '/var/lib/asterisk/sounds/custom';
 const upload = multer({ dest: '/tmp/' });
 
 app.use(cors());
-app.use(upload.any());
 app.use(express.json()); // for JSON body parsing
 app.use(express.urlencoded({ extended: true }));
 
