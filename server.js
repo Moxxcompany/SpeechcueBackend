@@ -21,6 +21,7 @@ if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
 
 // ✅ POST /api/audio/upload
 app.post('/api/audio/upload', upload.single('audio'), (req, res) => {
+  console.log("req.file",req.file);
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const { originalname, path: tempPath } = req.file;
