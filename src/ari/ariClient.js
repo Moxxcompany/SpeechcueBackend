@@ -1,6 +1,7 @@
 import ari from 'ari-client';
 import { getIVRFlowByPhoneNumber } from '../utils/ivrStore.js';
 import { textToSpeech } from '../utils/textToSpeech.js';
+import path from 'path';
 
 export async function startARIClient() {
     try {
@@ -42,33 +43,33 @@ export async function startARIClient() {
 }
 
 async function runIVRFlow(client, channel, flow) {
-    await channel.answer();
-    console.log('Call answered, starting IVR flow...');
-    let stop = false;
+    // await channel.answer();
+    // console.log('Call answered, starting IVR flow...');
+    // let stop = false;
 
-    // DTMF listener
-    channel.on('ChannelDtmfReceived', (event) => {
-      const digit = event.digit;
-      if (digit === '1') {
-        stop = true;
-      }
-    });
+    // // DTMF listener
+    // channel.on('ChannelDtmfReceived', (event) => {
+    //   const digit = event.digit;
+    //   if (digit === '1') {
+    //     stop = true;
+    //   }
+    // });
 
-    // loop sound until 1 is pressed
-    while (!stop) {
-      await new Promise((resolve) => {
-       
+    // // loop sound until 1 is pressed
+    // while (!stop) {
+    //   await new Promise((resolve) => {
+    //    console.log("###")
           
-        channel.play({ media: 'sound:https://storage.googleapis.com/speechcue-ivr-audio-bucket/ivr-audio/demo-congrats.wav' }, () => {
-          setTimeout(resolve, 2000); // slight delay between repeats
-        });
-        // channel.play({ media: 'sound:https://storage.googleapis.com/speechcue-ivr-audio-bucket/ivr-audio/tts_IVR_Testing_2_1746477640662.wav' }, () => {
-        //   setTimeout(resolve, 2000); // slight delay between repeats
-        // });
-      });
-    }
+    //     channel.play({ media: 'sound:custom/tts_Test_2_1_1746669711597'  }, () => {
+    //       setTimeout(resolve, 2000); // slight delay between repeats
+    //     });
+    //     // channel.play({ media: 'sound:https://storage.googleapis.com/speechcue-ivr-audio-bucket/ivr-audio/tts_IVR_Testing_2_1746477640662.wav' }, () => {
+    //     //   setTimeout(resolve, 2000); // slight delay between repeats
+    //     // });
+    //   });
+    // }
 
-    await channel.hangup();
+    // await channel.hangup();
  
 
       
@@ -78,13 +79,13 @@ async function runIVRFlow(client, channel, flow) {
         return edge?.target || null;
     };
 
-    let currentNodeId = flow.nodes.find(n => n.type === 'start')?.id;
+    let currentNodeId = flow.nodes.find(n => n.id === '1')?.id;
     if (!currentNodeId) {
         console.log('⚠ No start node found.');
         await channel.hangup();
         return;
     }
-
+    await channel.answer();
     while (currentNodeId) {
         const node = nodesMap[currentNodeId];
         if (!node) break;
@@ -93,14 +94,15 @@ async function runIVRFlow(client, channel, flow) {
 
         if (type === 'start' || type === 'tts') {
             const gcsUrl = data?.audioUrl;
-            if (!gcsUrl) {
+            const urlWithoutExtension = gcsUrl?.replace(path.extname(gcsUrl), '');
+            if (!urlWithoutExtension) {
                 console.log(`⚠ No audioUrl for node ${node.id}, skipping...`);
                 currentNodeId = getNextNodeId(currentNodeId);
                 continue;
             }
 
-            console.log(`🔊 Playing from GCS: ${gcsUrl}`);
-              await channel.play({ media: `sound:${gcsUrl}` }); 
+            console.log(`🔊 Playing from GCS: ${urlWithoutExtension}`);
+              await channel.play({ media: `sound:${urlWithoutExtension}` }); 
             currentNodeId = getNextNodeId(currentNodeId);
         }
 

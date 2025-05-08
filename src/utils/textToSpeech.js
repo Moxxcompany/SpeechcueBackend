@@ -35,7 +35,7 @@ export async function textToSpeech(text) {
         language: 'en-US',
         option: 'FEMALE',
         text,
-        output_format: 'wav',
+        audio_format: "wav"
       }),
     });
 

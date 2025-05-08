@@ -5,6 +5,9 @@ info:
   description: REST API for managing users and authentication
 servers:
   - url: http://localhost:8888
+    description: Local development server
+  - url: http://85.9.196.132:3000
+    description: Production Asterisk Audio Server
 
 paths:
   /api/users:
@@ -993,6 +996,53 @@ paths:
           description: Number deassigned successfully
         404:
           description: Phone number not found
+      
+  /api/audio/upload:
+    post:
+      tags: [IVRs]
+      summary: Upload an audio file to the server (Asterisk)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Upload successful
+        400:
+          description: Invalid file format
+        500:
+          description: Upload failed
+
+  /api/audio/delete:
+    delete:
+      tags: [IVRs]
+      summary: Delete an audio file from the server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+              properties:
+                filename:
+                  type: string
+                  example: tts_IVR_Testing_2_1746477640662.wav
+      responses:
+        200:
+          description: Audio deleted successfully
+        404:
+          description: File not found
+        500:
+          description: Delete failed
+
 
 tags:
   - name: Users
