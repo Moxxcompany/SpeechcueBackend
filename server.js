@@ -3,6 +3,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const { spawn } = require('child_process');
 
 const app = express();
 const PORT = 3000;
@@ -11,17 +12,17 @@ const ASTERISK_SOUNDS_DIR = '/var/lib/asterisk/sounds/custom';
 const upload = multer({ dest: '/tmp/' });
 
 app.use(cors());
-app.use(express.json()); // for JSON body parsing
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ensure sound dir exists
+// Ensure custom folder exists
 if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
   fs.mkdirSync(ASTERISK_SOUNDS_DIR, { recursive: true });
 }
 
-// ✅ POST /api/audio/upload
 app.post('/api/audio/upload', upload.single('audio'), (req, res) => {
-  console.log("req.file",req.file);
+  console.log('📥 Received upload:', req.file);
+
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const { originalname, path: tempPath } = req.file;
@@ -32,20 +33,35 @@ app.post('/api/audio/upload', upload.single('audio'), (req, res) => {
     return res.status(400).json({ error: 'Only .wav files are allowed' });
   }
 
-  const finalPath = path.join(ASTERISK_SOUNDS_DIR, originalname);
+  const outputFilePath = path.join(ASTERISK_SOUNDS_DIR, originalname);
 
-  fs.rename(tempPath, finalPath, (err) => {
-    if (err) {
-      console.error('❌ Error saving file:', err);
-      return res.status(500).json({ error: 'Failed to save file' });
+  // 🔁 Use ffmpeg to convert format
+  const ffmpeg = spawn('ffmpeg', [
+    '-y',
+    '-i', tempPath,
+    '-ar', '8000',
+    '-ac', '1',
+    '-sample_fmt', 's16',
+    '-f', 'wav',
+    outputFilePath,
+  ]);
+
+  ffmpeg.stderr.on('data', (data) => {
+    console.error(`[ffmpeg] ${data}`);
+  });
+
+  ffmpeg.on('exit', (code) => {
+    fs.unlink(tempPath, () => {}); // cleanup temp file
+
+    if (code !== 0) {
+      return res.status(500).json({ error: 'FFmpeg conversion failed' });
     }
 
-    console.log(`✅ Uploaded: ${finalPath}`);
-    res.json({ message: 'Upload successful', asteriskPath: `custom/${originalname}` });
+    console.log(`✅ Converted and saved: ${outputFilePath}`);
+    res.json({ message: 'Upload and conversion successful', asteriskPath: `custom/${originalname}` });
   });
 });
 
-// 🗑️ DELETE /api/audio/delete
 app.delete('/api/audio/delete', (req, res) => {
   const { filename } = req.body;
 
