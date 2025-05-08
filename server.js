@@ -12,6 +12,7 @@ const upload = multer({ dest: '/tmp/' });
 
 app.use(cors());
 app.use(express.json()); // for JSON body parsing
+app.use(express.urlencoded({ extended: true }));
 
 // Ensure sound dir exists
 if (!fs.existsSync(ASTERISK_SOUNDS_DIR)) {
