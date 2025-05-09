@@ -84,6 +84,17 @@ export const assignNumberToIVR = async (req, res, next) => {
     }
 };
 
+
+export const getAssignedNumbersWithIVR = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const assignedNumbers = await ivrService.getAssignedNumbersForUser(userId);
+        res.json({ success: true, data: assignedNumbers });
+    } catch (err) {
+        next(err);
+    }
+};
+
 export const deassignNumberFromIVR = async (req, res, next) => {
     try {
         const { phoneNumberId } = req.body;

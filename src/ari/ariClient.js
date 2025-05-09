@@ -1,7 +1,7 @@
 import ari from 'ari-client';
 import { getIVRFlowByPhoneNumber } from '../utils/ivrStore.js';
-import { textToSpeech } from '../utils/textToSpeech.js';
 import path from 'path';
+import logger from '../config/logger.js';
 
 export async function startARIClient() {
     try {
@@ -30,11 +30,7 @@ export async function startARIClient() {
                 await channel.hangup();
             }
         });
-        // client.channels.originate({
-        //     endpoint: 'external_media:85.9.196.132:12345/ulaw',
-        //     app: 'ivrapp',
-        //     appArgs: 'externalstream'
-        //   });
+     
         client.start('ivrapp');
         console.log('✅ ARI client started and listening for calls...');
     } catch (err) {
@@ -43,36 +39,7 @@ export async function startARIClient() {
 }
 
 async function runIVRFlow(client, channel, flow) {
-    // await channel.answer();
-    // console.log('Call answered, starting IVR flow...');
-    // let stop = false;
 
-    // // DTMF listener
-    // channel.on('ChannelDtmfReceived', (event) => {
-    //   const digit = event.digit;
-    //   if (digit === '1') {
-    //     stop = true;
-    //   }
-    // });
-
-    // // loop sound until 1 is pressed
-    // while (!stop) {
-    //   await new Promise((resolve) => {
-    //    console.log("###")
-          
-    //     channel.play({ media: 'sound:custom/tts_Test_2_1_1746669711597'  }, () => {
-    //       setTimeout(resolve, 2000); // slight delay between repeats
-    //     });
-    //     // channel.play({ media: 'sound:https://storage.googleapis.com/speechcue-ivr-audio-bucket/ivr-audio/tts_IVR_Testing_2_1746477640662.wav' }, () => {
-    //     //   setTimeout(resolve, 2000); // slight delay between repeats
-    //     // });
-    //   });
-    // }
-
-    // await channel.hangup();
- 
-
-      
     const nodesMap = Object.fromEntries(flow.nodes.map(n => [n.id, n]));
     const getNextNodeId = (fromId) => {
         const edge = flow.edges.find(e => e.source === fromId);
@@ -85,51 +52,88 @@ async function runIVRFlow(client, channel, flow) {
         await channel.hangup();
         return;
     }
-    await channel.answer();
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     while (currentNodeId) {
         const node = nodesMap[currentNodeId];
         if (!node) break;
-
-        const { type, data } = node;
-
-        if (type === 'start' || type === 'tts') {
-            const gcsUrl = data?.audioUrl;
-            const urlWithoutExtension = gcsUrl?.replace(path.extname(gcsUrl), '');
-            if (!urlWithoutExtension) {
-                console.log(`⚠ No audioUrl for node ${node.id}, skipping...`);
-                currentNodeId = getNextNodeId(currentNodeId);
-                continue;
-            }
-
-            console.log(`🔊 Playing from GCS: ${urlWithoutExtension}`);
-              await channel.play({ media: `sound:${urlWithoutExtension}` }); 
+      
+        const { type, data, voice } = node;
+      
+        switch (type) {
+          case 'start':
             currentNodeId = getNextNodeId(currentNodeId);
-        }
-
-        else if (type === 'input') {
-            const prompt = data?.text || 'Please enter a digit.';
-            const audioFile = await textToSpeech(prompt);
-            // await channel.play({ media: `uri:${audioFile}` });
-
-            try {
-                const digit = await waitForDTMF(channel, data.timeout || 5);
-                console.log(`🔢 Received: ${digit}`);
-                currentNodeId = data.choices?.[digit] || null;
-            } catch {
-                const errFile = await textToSpeech('No input received. Goodbye.');
-                await channel.play({ media: `uri:${errFile}` });
-                await channel.hangup();
-                return;
-            }
-        }
-
-        else {
-            console.log(`⚠ Unknown node type: ${type}`);
             break;
+      
+          case 'answer':
+            logger.info('✅ Answering call');
+            await channel.answer();
+            currentNodeId = getNextNodeId(currentNodeId);
+            break;
+      
+          case 'tts': {
+            const gcsUrl = data?.audioUrl;
+            const urlWithoutExt = gcsUrl?.replace(path.extname(gcsUrl), '');
+      
+            if (!urlWithoutExt) {
+              logger.warn(`⚠ Missing audio URL for node ${node.id}`);
+              currentNodeId = getNextNodeId(currentNodeId);
+              break;
+            }
+      
+            const repeat = voice?.play || 1;
+            logger.info(`🔊 Playing TTS: ${urlWithoutExt}, Repeat: ${repeat}`);
+      
+            for (let i = 0; i < repeat; i++) {
+              await channel.play({ media: `sound:${urlWithoutExt}` });
+            }
+      
+            currentNodeId = getNextNodeId(currentNodeId);
+            break;
+          }
+      
+          case 'input': {
+            const retries = data.retries || 1;
+            let digit = null;
+            let attempts = 0;
+      
+            while (attempts < retries && digit === null) {
+              try {
+                digit = await waitForDTMF(channel, data.timeout || 5);
+                logger.info(`🔢 DTMF received: ${digit}`);
+              } catch {
+                attempts++;
+                logger.warn(`⚠ No input (Attempt ${attempts}/${retries})`);
+              }
+            }
+      
+            if (digit && data.choices?.[digit]) {
+              currentNodeId = data.choices[digit];
+            } else {
+              logger.info('📞 No valid input received, hanging up...');
+              await channel.hangup();
+              return;
+            }
+            break;
+          }
+      
+          case 'hangup':
+            logger.info('📞 Hangup node reached. Terminating call.');
+            await channel.hangup();
+            currentNodeId = null;
+            break;
+      
+          default:
+            logger.warn(`⚠ Unknown node type: ${type}`);
+            await channel.hangup();
+            currentNodeId = null;
         }
-    }
+      }
+      
+    
+    logger.info('✅ IVR session completed.');
 
-    // await channel.hangup();
     console.log('✅ IVR session completed.');
 }
 

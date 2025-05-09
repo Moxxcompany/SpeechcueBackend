@@ -975,6 +975,50 @@ paths:
         404:
           description: IVR or phone number not found
 
+  /api/ivrs/assigned-numbers/{userId}:
+    get:
+      tags: [IVRs]
+      summary: Get all phone numbers assigned to IVRs for a specific user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the user
+      responses:
+        200:
+          description: List of assigned phone numbers with IVR details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        phoneNumber:
+                          type: string
+                          example: +1234567890
+                        ivrName:
+                          type: string
+                          example: Main Support IVR
+                        ivrDescription:
+                          type: string
+                          example: Handles basic support routing
+                        ivrId:
+                          type: integer
+                          example: 1
+        400:
+          description: Invalid userId
+        404:
+          description: No IVRs or phone numbers found
+
   /api/ivrs/deassign-number:
     post:
       tags: [IVRs]
@@ -1043,6 +1087,45 @@ paths:
         500:
           description: Delete failed
 
+  /api/tts/providersAndLanguages:
+    get:
+      tags: [TTS]
+      summary: Get list of available TTS providers and their supported languages
+      responses:
+        200:
+          description: List of providers and the languages they support
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        provider_name:
+                          type: string
+                          example: google
+                        languages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              language:
+                                type: string
+                                example: en-US
+                              display_name:
+                                type: string
+                                example: English (United States)
+                              genders:
+                                type: array
+                                items:
+                                  type: string
+                                  example: MALE
+
+
+
 
 tags:
   - name: Users
@@ -1057,3 +1140,5 @@ tags:
     description: Manage IVR flows created by users
   - name: Test
     description: Test and simulate IVR flows without real calls
+  - name: TTS
+    description: Text-to-Speech (TTS) related APIs

@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const { IVR, PhoneNumber } = models;
+const { IVR, PhoneNumber, Sequelize } = models;
 
 const AUDIO_URL = process.env.ASTERISK_MIDDLEWARE_SERVER_URL;
 
@@ -30,7 +30,7 @@ export const createIVRWithAudio = async ({ userId, name, description, flow }) =>
           const localPath = path.join(TEMP_AUDIO_DIR, fileName);
 
           logger.info(`🎤 Generating TTS: ${node.data.text} -> ${fileName}`);
-          const asteriskPath = await generateTTS(node.data.text, localPath, fileName);
+          const asteriskPath = await generateTTS(node, localPath, fileName);
           tempFiles.push(localPath); // For rollback if error
 
           // const asteriskPath = await uploadAudioToServer(localPath);
@@ -192,6 +192,19 @@ export const assignNumberToIVR = async (ivrId, phoneNumberId) => {
   number.ivrId = ivrId;
   await number.save();
   return number;
+};
+
+export const getAssignedNumbersForUser = async (userId) => {
+  return PhoneNumber.findAll({
+    where: {
+      userId,
+      ivrId: { [Sequelize.Op.ne]: null },
+    },
+    include: {
+      model: IVR,
+      as: 'ivr'
+    },
+  });
 };
 
 export const deassignNumberFromIVR = async (phoneNumberId) => {

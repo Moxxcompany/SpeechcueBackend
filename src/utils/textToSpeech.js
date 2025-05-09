@@ -32,7 +32,7 @@ export async function textToSpeech(text) {
       },
       body: JSON.stringify({
         providers: 'google',
-        language: 'en-US',
+        language: 'en',
         option: 'FEMALE',
         text,
         audio_format: "wav"

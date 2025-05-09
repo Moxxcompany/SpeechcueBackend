@@ -11,6 +11,7 @@ import freepbxRoutes from './routes/freepbx.routes.js';
 import ivrRoutes from './routes/ivr.routes.js';
 import testRoutes from './routes/test.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
+import ttsInfoRoutes from './routes/ttsInfo.routes.js';
 import { startARIClient } from './ari/ariClient.js';
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/twilio', twilioRoutes);
 app.use('/api/freepbx', freepbxRoutes);
 app.use('/api/ivrs', ivrRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/tts', ttsInfoRoutes);
 app.use('/api', testRoutes);
 
 // Swagger Docs

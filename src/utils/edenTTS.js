@@ -6,23 +6,30 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const EDEN_AI_API_KEY = process.env.EDEN_AI_API_KEY;
-
+const EDEN_AI_API_URL = process.env.EDEN_AI_API_URL || 'https://api.edenai.run/v2';
 const AUDIO_UPLOAD_URL = `${process.env.ASTERISK_MIDDLEWARE_SERVER_URL}/api/audio/upload`;
 
-export const generateTTS = async (text, localPath, fileName) => {
+export const generateTTS = async (node, localPath, fileName) => {
+    const text = node?.data?.text || '';
+    const nodeVoiceSettings  = {
+      providers: node?.voice?.providers || 'google',
+      language: node?.voice?.language || 'en',
+      option: node?.voice?.option || 'FEMALE',
+      audio_format: 'wav',
+    }
     try {
   
       // Step 1: Call Eden AI
-      const ttsRes = await fetch('https://api.edenai.run/v2/audio/text_to_speech', {
+      const ttsRes = await fetch(`${EDEN_AI_API_URL}/audio/text_to_speech`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${EDEN_AI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          providers: 'google',
-          language: 'en-US',
-          option: 'FEMALE',
+          providers: nodeVoiceSettings?.providers || 'google',
+          language: nodeVoiceSettings?.language || 'en',
+          option: nodeVoiceSettings?.option || 'FEMALE',
           text,
           audio_format: 'wav',
         }),
