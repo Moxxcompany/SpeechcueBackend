@@ -84,61 +84,81 @@ const playSound = async (client, channel, media, channelAlive) => {
         });
     });
 };
-
 async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 20) {
     const bridge = client.Bridge();
     await bridge.create({ type: 'mixing' });
-    await bridge.addChannel({ channel: callerChannel.id });
 
-    for (const number of numbers) {
+    callerChannel.ring();
+
+    try {
+        await bridge.addChannel({ channel: callerChannel.id });
+        console.log('✅ Caller added to bridge');
+    } catch (err) {
+        console.error('❌ Failed to add caller to bridge:', err.message);
+        return { status: 'bridge_failed' };
+    }
+
+    for (let i = 0; i < numbers.length; i++) {
+        const number = numbers[i];
         const endpoint = `PJSIP/${number}@PSTN-Twilio`;
-        console.log(`📞 Trying to dial: ${endpoint}`);
-
         const callerId = callerChannel.caller.number || '+10000000000';
+
+        console.log(`📞 Attempting to dial: ${number} (${i + 1}/${numbers.length})`);
 
         const outgoing = await client.channels.originate({
             endpoint,
             app: 'ivrapp',
             appArgs: number,
             callerId,
-            timeout
+            timeout,
         });
 
-        return new Promise((resolve, reject) => {
-            let callAnswered = false;
+        const result = await new Promise((resolve) => {
+            let resolved = false;
 
-            outgoing.once('StasisStart', async (event, channel) => {
-                callAnswered = true;
-                console.log('✅ Outgoing call answered:', channel.name);
-                await bridge.addChannel({ channel: channel.id });
+            const safeResolve = (res) => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(res);
+                }
+            };
 
-                channel.once('StasisEnd', async () => {
-                    console.log('📴 Outgoing call ended.');
-                    try {
-                        await bridge.destroy();
-                    } catch (_) { }
-                    resolve({ status: 'completed' });
+            outgoing.once('StasisStart', async (event, outChan) => {
+                console.log('✅ Outgoing call answered:', outChan.name);
+                try {
+                    await bridge.addChannel({ channel: outChan.id });
+                } catch (err) {
+                    console.error('❌ Failed to bridge call:', err.message);
+                    return safeResolve({ status: 'bridge_failed' });
+                }
+
+                outChan.once('StasisEnd', () => {
+                    console.log('📴 Outgoing call ended');
+                    safeResolve({ status: 'completed' });
                 });
             });
 
             outgoing.once('ChannelDestroyed', () => {
-                if (!callAnswered) {
-                    console.log('❌ Call failed or was rejected.');
-                    resolve({ status: 'failed' });
-                }
+                console.log('📞 Outbound call not answered or got disconnected');
+                safeResolve({ status: 'not_answered' });
             });
 
-            // Fallback timeout
             setTimeout(() => {
-                if (!callAnswered) {
-                    console.log('⚠️ Timeout - call not answered');
-                    resolve({ status: 'timeout' });
+                if (!resolved) {
+                    console.warn('⏰ Timeout dialing number:', number);
+                    safeResolve({ status: 'timeout' });
                 }
             }, timeout * 1000);
         });
+
+        if (result.status === 'completed') {
+            return result;
+        } else {
+            console.log(`❌ Call failed (${result.status}), trying next if available...`);
+        }
     }
 
-    return { status: 'no_numbers' };
+    return { status: 'all_failed' };
 }
 
 // [custom-ivrapp-incoming-custom]
@@ -150,6 +170,7 @@ async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 2
 
 async function runIVRFlow(client, channel, flow, channelAlive) {
     console.log('📜 Running IVR flow:');
+
     const nodesMap = Object.fromEntries(flow.nodes.map(n => [n.id, n]));
     const getNextNodeId = (fromId) => {
         const edge = flow.edges.find(e => e.source === fromId);
@@ -157,15 +178,10 @@ async function runIVRFlow(client, channel, flow, channelAlive) {
     };
 
     let currentNodeId = flow.nodes.find(n => n.id === '1')?.id;
-    // if (!currentNodeId) {
-    //     console.log('⚠ No start node found.');
-    //     await channel.hangup();
-    //     return;
-    // }
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    while (currentNodeId) {
+    while (currentNodeId && channelAlive) {
         const node = nodesMap[currentNodeId];
         if (!node) break;
 
@@ -205,70 +221,28 @@ async function runIVRFlow(client, channel, flow, channelAlive) {
                 break;
             }
 
-            case 'input': {
-                const retries = data.retries || 10;
-                let userInput = null;
-                let attempts = 0;
-
-                while (attempts < retries && userInput === null) {
-                    try {
-                        userInput = await waitForDTMF(channel, data.timeout || 5);
-                        logger.info(`🔢 DTMF received: ${userInput}`);
-                    } catch {
-                        attempts++;
-                        logger.warn(`⚠ No input (Attempt ${attempts}/${retries})`);
-                    }
-                }
-
-                if (!channelAlive) return;
-
-                let matchedChoice = null;
-
-                if (userInput) {
-                    for (const choice of data.choices || []) {
-                        if (choice.dtmf === userInput) {
-                            matchedChoice = choice;
-                            break;
-                        }
-                    }
-                }
-
-                if (!userInput && data.choices) {
-                    matchedChoice = data.choices.find(c => c.condition === 'no_input');
-                }
-
-                if (!matchedChoice && userInput) {
-                    matchedChoice = data.choices.find(c => c.condition === 'unknown');
-                }
-
-                if (matchedChoice?.next) {
-                    currentNodeId = matchedChoice.next;
-                    console.log(`Matched choice: ${matchedChoice.dtmf}, Next node: ${currentNodeId}`);
-                } else {
-                    logger.info('📞 No valid input or fallback found, hanging up...');
-                    if (channelAlive) await channel.hangup();
-                    return;
-                }
-
-                break;
-            }
-
             case 'forward': {
-                const { phones = [], timeout = 20, strategy = 'sequential' } = data;
-
+                const { phones = [], timeout = 20 } = data;
                 const formattedPhones = phones.map(phone =>
                     phone.startsWith('+') ? phone : `+${phone}`
                 );
-
-                logger.info(`📞 Forwarding to: ${formattedPhones.join(', ')}, strategy: ${strategy}`);
-
-                const result = await dialPhoneNumbers(client, channel, formattedPhones, timeout, strategy);
-
+                logger.info(`📞 Forwarding to: ${formattedPhones.join(', ')}`);
+            
+                const result = await dialPhoneNumbers(client, channel, formattedPhones, timeout);
+            
+                if (result.status === 'completed') {
+                    logger.info('✅ Call connected successfully, skipping sorry message');
+                    // Don't play sorry, just continue to next node
+                } else {
+                    logger.info('❌ All calls failed, playing sorry message');
+                    await playSound(client, channel, 'sound:sorry', channelAlive);
+                }
+            
                 logger.info(`📞 Forward result: ${result.status}`);
                 currentNodeId = getNextNodeId(currentNodeId);
                 break;
             }
-
+            
             case 'hangup':
                 logger.info('📞 Hangup node reached. Terminating call.');
                 if (channelAlive) await channel.hangup();
