@@ -1123,9 +1123,169 @@ paths:
                                 items:
                                   type: string
                                   example: MALE
+  /api/ringgroups:
+    post:
+      tags: [RingGroups]
+      summary: Create a new ring group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ringGroupId
+                - strategy
+                - members
+                - userId
+              properties:
+                ringGroupId:
+                  type: string
+                  example: '6000'
+                strategy:
+                  type: string
+                  example: ringall
+                members:
+                  type: array
+                  items:
+                    type: string
+                  example: ["1001", "1002"]
+                description:
+                  type: string
+                  example: "Support department ring group"
+                userId:
+                  type: integer
+                  example: 1
+      responses:
+        200:
+          description: Ring group created successfully
+        400:
+          description: Invalid input
+        500:
+          description: Internal server error
 
+    get:
+      tags: [RingGroups]
+      summary: Get all ring groups
+      responses:
+        200:
+          description: List of ring groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ringGroupId:
+                      type: string
+                      example: '6000'
+                    strategy:
+                      type: string
+                      example: ringall
+                    members:
+                      type: array
+                      items:
+                        type: string
+                    description:
+                      type: string
+                      example: "Support department ring group"
+                    userId:
+                      type: integer
+                      example: 1
+        500:
+          description: Internal server error
 
+  /api/ringgroups/{id}:
+    get:
+      tags: [RingGroups]
+      summary: Get a ring group by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Ring group details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ringGroupId:
+                    type: string
+                    example: '6000'
+                  strategy:
+                    type: string
+                    example: ringall
+                  members:
+                    type: array
+                    items:
+                      type: string
+                  description:
+                    type: string
+                    example: "Support department ring group"
+                  userId:
+                    type: integer
+                    example: 1
+        404:
+          description: Ring group not found
+        500:
+          description: Internal server error
 
+    put:
+      tags: [RingGroups]
+      summary: Update a ring group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                strategy:
+                  type: string
+                  example: ringall
+                members:
+                  type: array
+                  items:
+                    type: string
+                  example: ["1001", "1003"]
+                description:
+                  type: string
+                  example: "Updated ring group for tech support"
+      responses:
+        200:
+          description: Ring group updated successfully
+        404:
+          description: Ring group not found
+        500:
+          description: Internal server error
+
+    delete:
+      tags: [RingGroups]
+      summary: Delete a ring group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        204:
+          description: Ring group deleted successfully
+        404:
+          description: Ring group not found
+        500:
+          description: Internal server error
 
 tags:
   - name: Users
@@ -1142,3 +1302,5 @@ tags:
     description: Test and simulate IVR flows without real calls
   - name: TTS
     description: Text-to-Speech (TTS) related APIs
+  - name: RingGroups
+    description: Ring group call management and routing

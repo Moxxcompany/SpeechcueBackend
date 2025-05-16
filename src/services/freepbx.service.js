@@ -280,3 +280,94 @@ export const deleteExtension = async (id, userId) => {
     throw err;
   }
 };
+
+export async function createRingGroup({ ringGroupId, strategy = 'ringall', members }) {
+  try {
+    const token = await getAccessToken();
+
+    const mutation = gql`
+      mutation {
+        addRingGroup(input: {
+          groupNumber: "${ringGroupId}",
+          strategy: "${strategy}",
+          extensionList: "${members.join('-')}"
+        }) {
+          status
+          message
+        }
+      }
+    `;
+
+    const result = await request(endpoint, mutation, {}, {
+      Authorization: `Bearer ${token}`
+    });
+
+    console.log("✅ Ring group mutation result:", result);
+
+    if (!result?.addRingGroup?.status) {
+      throw new Error(result?.addRingGroup?.message || 'Ring group creation failed');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Unexpected error creating ring group:', error);
+    throw new Error('Failed to create ring group');
+  }
+}
+
+export async function updateRingGroup({ ringGroupId, strategy = 'ringall', members = [], description = '' }) {
+  const token = await getAccessToken();
+
+  const mutation = gql`
+    mutation {
+      updateRingGroup(input: {
+        groupNumber: "${ringGroupId}",
+        strategy: "${strategy}",
+        extensionList: "${members.join('-')}",
+        description: "${description}"
+      }) {
+        status
+        message
+      }
+    }
+  `;
+
+  const result = await request(endpoint, mutation, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  if (!result?.updateRingGroup?.status) {
+    logger.error(`❌ Failed to update ring group ${ringGroupId}: ${result?.updateRingGroup?.message}`);
+    throw new Error(result?.updateRingGroup?.message || 'Ring group update failed');
+  }
+
+  logger.info(`✅ Ring group ${ringGroupId} updated successfully in FreePBX`);
+  return true;
+}
+
+export async function deleteRingGroup(ringGroupId) {
+  const token = await getAccessToken();
+
+  const mutation = gql`
+    mutation {
+      deleteRingGroup(input: {
+        groupNumber: ${ringGroupId}
+      }) {
+        status
+        message
+      }
+    }
+  `;
+
+  const result = await request(endpoint, mutation, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  if (!result?.deleteRingGroup?.status) {
+    logger.error(`❌ Failed to delete ring group ${ringGroupId}: ${result?.deleteRingGroup?.message}`);
+    throw new Error(result?.deleteRingGroup?.message || 'Ring group deletion failed');
+  }
+
+  logger.info(`✅ Ring group ${ringGroupId} deleted successfully in FreePBX`);
+  return true;
+}

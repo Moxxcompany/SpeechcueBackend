@@ -9,6 +9,7 @@ import defineSipDomain from './sipdomain.model.js';
 import defineSipCredential from './sipcredential.model.js';
 import defineIVR from './ivr.model.js'; 
 import defineExtension from './extension.model.js';
+import defineRingGroup from './ringgroup.model.js';
 
 const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
     host: config.HOST,
@@ -25,6 +26,7 @@ const SipDomain = defineSipDomain(sequelize, Sequelize.DataTypes);
 const SipCredential = defineSipCredential(sequelize, Sequelize.DataTypes);
 const IVR = defineIVR(sequelize, Sequelize.DataTypes);
 const Extension = defineExtension(sequelize, Sequelize.DataTypes);
+const RingGroup = defineRingGroup(sequelize, Sequelize.DataTypes);
 
 // associations
 User.hasOne(SubAccount, { foreignKey: 'userId' });
@@ -56,5 +58,6 @@ export default {
   SipDomain,
   SipCredential,
   IVR,
-  Extension
+  Extension,
+  RingGroup
 };
