@@ -1134,7 +1134,6 @@ paths:
             schema:
               type: object
               required:
-                - ringGroupId
                 - strategy
                 - members
                 - userId
@@ -1166,7 +1165,14 @@ paths:
 
     get:
       tags: [RingGroups]
-      summary: Get all ring groups
+      summary: Get all ring groups for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: User ID to fetch ring groups
       responses:
         200:
           description: List of ring groups
@@ -1193,6 +1199,8 @@ paths:
                     userId:
                       type: integer
                       example: 1
+        400:
+          description: Missing or invalid userId
         500:
           description: Internal server error
 
@@ -1206,6 +1214,12 @@ paths:
           required: true
           schema:
             type: integer
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: User ID that owns the ring group
       responses:
         200:
           description: Ring group details
@@ -1232,6 +1246,8 @@ paths:
                     example: 1
         404:
           description: Ring group not found
+        400:
+          description: Missing or invalid userId
         500:
           description: Internal server error
 
@@ -1261,14 +1277,8 @@ paths:
                   example: ["1001", "1003"]
                 description:
                   type: string
-                  example: "Updated ring group for tech support"
-      responses:
-        200:
-          description: Ring group updated successfully
-        404:
-          description: Ring group not found
-        500:
-          description: Internal server error
+                  example: "Updated support group"
+
 
     delete:
       tags: [RingGroups]
@@ -1279,13 +1289,22 @@ paths:
           required: true
           schema:
             type: integer
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: User ID that owns the ring group
       responses:
-        204:
+        200:
           description: Ring group deleted successfully
         404:
           description: Ring group not found
+        400:
+          description: Missing or invalid userId
         500:
           description: Internal server error
+
 
 tags:
   - name: Users

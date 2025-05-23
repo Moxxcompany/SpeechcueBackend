@@ -49,6 +49,11 @@ Extension.belongsTo(User, { foreignKey: 'userId' });
 IVR.hasMany(PhoneNumber, { foreignKey: 'ivrId' });
 PhoneNumber.belongsTo(IVR, { foreignKey: 'ivrId', as: 'ivr' });
 
+// User ↔ RingGroup (One-to-Many)
+User.hasMany(RingGroup, { foreignKey: 'userId', as: 'ringgroups' });
+RingGroup.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+
 export default {
   Sequelize,
   sequelize,

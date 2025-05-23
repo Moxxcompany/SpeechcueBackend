@@ -1,34 +1,32 @@
 import * as RingGroupService from '../services/ringgroup.service.js';
 import * as FreePBXService from '../services/freepbx.service.js';
 
+
 export const createRingGroup = async (req, res, next) => {
   try {
     let { ringGroupId, strategy, members, userId, description } = req.body;
 
-    // Auto-generate ringGroupId if not provided
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+
     if (!ringGroupId) {
-      const lastGroup = await RingGroupService.findLastCreated();
+      const lastGroup = await RingGroupService.findLastCreated(userId);
       const lastId = lastGroup?.ringGroupId ? parseInt(lastGroup.ringGroupId) : 4999;
       ringGroupId = String(lastId + 1);
     }
 
-    // Ensure ringGroupId is unique
-    const existing = await RingGroupService.findByGroupNumber(ringGroupId);
+    const existing = await RingGroupService.findByGroupNumberAndUser(ringGroupId, userId);
     if (existing) {
       return res.status(400).json({ success: false, message: `Ring Group ${ringGroupId} already exists.` });
     }
 
-    // Create in FreePBX
     await FreePBXService.createRingGroup({ ringGroupId, description, strategy, members });
 
-    // Create in DB
     const ringGroup = await RingGroupService.create({
       ringGroupId,
       description,
       strategy,
       members,
       userId,
-      name: ringGroupId,
       phones: members,
     });
 
@@ -40,7 +38,10 @@ export const createRingGroup = async (req, res, next) => {
 
 export const getRingGroups = async (req, res, next) => {
   try {
-    const groups = await RingGroupService.findAll();
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+
+    const groups = await RingGroupService.findAllByUser(userId);
     res.status(200).json({ success: true, data: groups });
   } catch (err) {
     next(err);
@@ -49,7 +50,11 @@ export const getRingGroups = async (req, res, next) => {
 
 export const getRingGroupById = async (req, res, next) => {
   try {
-    const group = await RingGroupService.findById(req.params.id);
+    const { id } = req.params;
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+
+    const group = await RingGroupService.findByIdAndUser(id, userId);
     if (!group) return res.status(404).json({ success: false, message: 'Ring group not found' });
     res.status(200).json({ success: true, data: group });
   } catch (err) {
@@ -59,16 +64,20 @@ export const getRingGroupById = async (req, res, next) => {
 
 export const updateRingGroup = async (req, res, next) => {
   try {
-    const existing = await RingGroupService.findById(req.params.id);
+    const { strategy, members, description } = req.body;
+    const userId = req.userId || req.body.userId || req.params.userId;
+    const id = req.params.id;
+
+    const existing = await RingGroupService.findByIdAndUser(id, userId);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Ring group not found' });
     }
 
-    const { ringGroupId, strategy, members, description } = req.body;
+    const ringGroupId = existing.ringGroupId;
 
-    // Try updating FreePBX first
+    // Update FreePBX first
     const success = await FreePBXService.updateRingGroup({
-      ringGroupId: ringGroupId || existing.name,
+      ringGroupId,
       strategy: strategy || existing.strategy,
       members: members || existing.members,
       description: description || existing.description,
@@ -81,12 +90,11 @@ export const updateRingGroup = async (req, res, next) => {
       });
     }
 
-    // Then update in DB
-    const updated = await RingGroupService.update(req.params.id, {
-      ringGroupId,
-      strategy,
-      members,
-      description,
+    // Update in DB
+    const updated = await RingGroupService.update(id, {
+      strategy: strategy || existing.strategy,
+      members: members || existing.members,
+      description: description || existing.description,
     });
 
     res.status(200).json({ success: true, data: updated });
@@ -95,25 +103,24 @@ export const updateRingGroup = async (req, res, next) => {
   }
 };
 
+
 export const deleteRingGroup = async (req, res, next) => {
   try {
-    const group = await RingGroupService.findById(req.params.id);
+    const { id } = req.params;
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+
+    const group = await RingGroupService.findByIdAndUser(id, userId);
     if (!group) return res.status(404).json({ success: false, message: 'Ring group not found' });
 
-    // Remove from FreePBX first
-    const isDeleted = await FreePBXService.deleteRingGroup(group.name);
-
+    const isDeleted = await FreePBXService.deleteRingGroup(group.ringGroupId);
     if (!isDeleted) {
       return res.status(500).json({ success: false, message: 'Failed to delete ring group from FreePBX' });
     }
 
-    // Then delete from DB
-    await RingGroupService.remove(req.params.id);
+    await RingGroupService.remove(id, userId);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Ring group deleted successfully',
-    });
+    return res.status(200).json({ success: true, message: 'Ring group deleted successfully' });
   } catch (err) {
     next(err);
   }

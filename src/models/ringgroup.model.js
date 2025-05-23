@@ -1,6 +1,6 @@
 export default (sequelize, DataTypes) => {
     return sequelize.define('RingGroup', {
-        name: {
+        ringGroupId: {
             type: DataTypes.STRING,
             allowNull: false,
         },
@@ -20,7 +20,14 @@ export default (sequelize, DataTypes) => {
             type: DataTypes.ARRAY(DataTypes.STRING),
             allowNull: true,
         },
-    }, {
+        userId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            references: { model: 'users', key: 'id' },
+            onDelete: 'CASCADE',
+        },
+    },  {
         tableName: 'ring_groups',
+        timestamps: true,
     })
 }
