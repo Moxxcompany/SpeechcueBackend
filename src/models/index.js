@@ -10,6 +10,8 @@ import defineSipCredential from './sipcredential.model.js';
 import defineIVR from './ivr.model.js'; 
 import defineExtension from './extension.model.js';
 import defineRingGroup from './ringgroup.model.js';
+import defineTrunk from './trunk.model.js';
+import defineCallLog from './calllog.model.js';
 
 const sequelize = new Sequelize(config.DB, config.USER, config.PASSWORD, {
     host: config.HOST,
@@ -27,6 +29,9 @@ const SipCredential = defineSipCredential(sequelize, Sequelize.DataTypes);
 const IVR = defineIVR(sequelize, Sequelize.DataTypes);
 const Extension = defineExtension(sequelize, Sequelize.DataTypes);
 const RingGroup = defineRingGroup(sequelize, Sequelize.DataTypes);
+const Trunk = defineTrunk(sequelize, Sequelize.DataTypes);
+const CallLog = defineCallLog(sequelize, Sequelize.DataTypes);
+
 
 // associations
 User.hasOne(SubAccount, { foreignKey: 'userId' });
@@ -53,6 +58,12 @@ PhoneNumber.belongsTo(IVR, { foreignKey: 'ivrId', as: 'ivr' });
 User.hasMany(RingGroup, { foreignKey: 'userId', as: 'ringgroups' });
 RingGroup.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+User.hasMany(Trunk, { foreignKey: 'userId', as: 'trunks' });
+Trunk.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// IVR ↔ CallLog (One-to-Many)
+IVR.hasMany(CallLog, { foreignKey: 'ivrId', as: 'callLogs' });
+CallLog.belongsTo(IVR, { foreignKey: 'ivrId', as: 'ivr' });
 
 export default {
   Sequelize,
@@ -64,5 +75,7 @@ export default {
   SipCredential,
   IVR,
   Extension,
-  RingGroup
+  RingGroup,
+  Trunk,
+  CallLog
 };

@@ -1,4 +1,4 @@
-import models from '../models/index.js';
+  import models from '../models/index.js';
 
 const { RingGroup } = models;
 
@@ -41,6 +41,10 @@ export const findByGroupNumber = (ringGroupId, userId) => {
   return RingGroup.findOne({ where: { ringGroupId, userId } });
 };
 
+export const findByIdWithoutAuth = (ringGroupId) => {
+  return RingGroup.findOne({ where: { id: ringGroupId } });
+};
+
 export const findByGroupNumberAndUser = (ringGroupId, userId) => {
   if (!ringGroupId || !userId) throw new Error('ringGroupId and userId are required');
   return RingGroup.findOne({ where: { ringGroupId, userId } });
@@ -50,9 +54,21 @@ export const findByGroupNumberAndUser = (ringGroupId, userId) => {
 // Update ring group by ID and user
 export const update = async (id, userId, data) => {
   const group = await RingGroup.findOne({ where: { id, userId } });
-  if (!group) return null;
-  return group.update(data);
+  if (!group) {
+    console.error(`❌ Cannot find ring group to update for id=${id} userId=${userId}`);
+    return null;
+  }
+
+  try {
+    const updated = await group.update(data);
+    console.info(`✅ Updated ring group ${group.ringGroupId} in DB`);
+    return updated;
+  } catch (err) {
+    console.error('❌ DB update failed:', err.message);
+    throw err;
+  }
 };
+
 
 // Delete ring group by ID and user
 export const remove = async (id, userId) => {

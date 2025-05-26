@@ -13,6 +13,8 @@ import testRoutes from './routes/test.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
 import ttsInfoRoutes from './routes/ttsInfo.routes.js';
 import ringGroupRoutes from './routes/ringgroup.routes.js';
+import trunkRoutes from './routes/trunk.routes.js';
+import callRecordingsRoutes from './routes/callRecordings.route.js';
 import { startARIClient } from './ari/ariClient.js';
 
 const app = express();
@@ -29,6 +31,8 @@ app.use('/api/ivrs', ivrRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/tts', ttsInfoRoutes);
 app.use('/api/ringgroups', ringGroupRoutes)
+app.use('/api/trunks', trunkRoutes)
+app.use('/api/callrecordings', callRecordingsRoutes); 
 app.use('/api', testRoutes);
 
 // Swagger Docs

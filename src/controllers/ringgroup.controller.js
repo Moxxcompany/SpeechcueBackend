@@ -65,8 +65,8 @@ export const getRingGroupById = async (req, res, next) => {
 export const updateRingGroup = async (req, res, next) => {
   try {
     const { strategy, members, description } = req.body;
-    const userId = req.userId || req.body.userId || req.params.userId;
-    const id = req.params.id;
+    const userId = req?.userId || req?.body?.userId || req?.params?.userId;
+    const id = Number(req.params.id);
 
     const existing = await RingGroupService.findByIdAndUser(id, userId);
     if (!existing) {
@@ -74,15 +74,18 @@ export const updateRingGroup = async (req, res, next) => {
     }
 
     const ringGroupId = existing.ringGroupId;
+    const updatedMembers = members || existing.members;
+    const updatedStrategy = strategy || existing.strategy;
+    const updatedDescription = description || existing.description;
 
-    // Update FreePBX first
     const success = await FreePBXService.updateRingGroup({
       ringGroupId,
-      strategy: strategy || existing.strategy,
-      members: members || existing.members,
-      description: description || existing.description,
+      strategy: updatedStrategy,
+      members: updatedMembers,
+      description: updatedDescription,
     });
 
+    console.log('FreePBX update success:', success);
     if (!success) {
       return res.status(500).json({
         success: false,
@@ -90,19 +93,19 @@ export const updateRingGroup = async (req, res, next) => {
       });
     }
 
-    // Update in DB
-    const updated = await RingGroupService.update(id, {
-      strategy: strategy || existing.strategy,
-      members: members || existing.members,
-      description: description || existing.description,
+    await RingGroupService.update(id, userId, {
+      strategy: updatedStrategy,
+      phones: updatedMembers,
+      description: updatedDescription,
     });
 
+    const updated = await RingGroupService.findByIdAndUser(id, userId); // Fetch updated data again
+    
     res.status(200).json({ success: true, data: updated });
   } catch (err) {
     next(err);
   }
 };
-
 
 export const deleteRingGroup = async (req, res, next) => {
   try {

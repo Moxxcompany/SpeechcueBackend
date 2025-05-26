@@ -2,7 +2,12 @@ import ari from 'ari-client';
 import { getIVRFlowByPhoneNumber } from '../utils/ivrStore.js';
 import path from 'path';
 import logger from '../config/logger.js';
-import { getExtensionState, dialRingAll, dialSequential } from '../services/ivrDial.service.js';
+// import { getExtensionState, dialRingAll, dialSequential } from '../services/ivrDial.service.js';
+import * as RingGroupService from '../services/ringgroup.service.js';
+import * as CallRecordingService from '../services/callrecording.service.js';
+
+
+let callStartTime = Date.now();
 
 export async function startARIClient() {
     try {
@@ -16,15 +21,20 @@ export async function startARIClient() {
             let channelAlive = true;
             const isOutboundLeg = channel.appData;
             const isLocalContext = channel.name.startsWith('Local/');
-          
+
             // 🚫 Ignore outbound channels and Local dialplan calls (ring groups)
             if (isOutboundLeg || isLocalContext) {
-              logger.info(`➡️ Skipping IVR logic for channel ${channel.name}`);
-              return;
+                logger.info(`➡️ Skipping IVR logic for channel ${channel.name}`);
+                return;
             }
 
             channel.once('StasisEnd', () => {
                 logger.info(`📴 Channel ${channel.name} left Stasis.`);
+                channelAlive = false;
+            });
+
+            channel.on('RecordingFinished', () => {
+                logger.info(`📴 Channel ${channel.name} left Statsis.`);
                 channelAlive = false;
             });
 
@@ -37,15 +47,16 @@ export async function startARIClient() {
                     if (channelAlive) await channel.hangup();
                     return;
                 }
-                const flow = await getIVRFlowByPhoneNumber(phoneNumber);
+                const { flow, ivrDetails } = await getIVRFlowByPhoneNumber(phoneNumber);
                 if (!flow) {
                     console.log('❌ No IVR flow found, hanging up...');
                     if (channelAlive) await channel.hangup();
                     return;
                 }
 
-                console.log('📜 IVR Flow Found');
-                await runIVRFlow(client, channel, flow, channelAlive);
+                logger.info('📜 IVR Flow Found:', ivrDetails.name);
+                await runIVRFlow({ client, channel, flow, channelAlive, ivrDetails });
+                
             } catch (err) {
                 console.error('🔥 Error in StasisStart:', err);
                 if (channelAlive) await channel.hangup();
@@ -54,6 +65,8 @@ export async function startARIClient() {
 
 
         client.start('ivrapp');
+
+      
         console.log('✅ ARI client started and listening for calls...');
     } catch (err) {
         console.error('❌ Failed to connect to ARI:', err);
@@ -93,266 +106,68 @@ const playSound = async (client, channel, media, channelAlive) => {
         });
     });
 };
-// async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 20) {
-//     const bridge = client.Bridge();
-//     await bridge.create({ type: 'mixing' });
 
-//     callerChannel.ring();
+async function dialPhoneNumbers({ client, channel, ringGroupId = '600', flow, ivrDetails, isRecordingEnabled }) {
 
-//     try {
-//         await bridge.addChannel({ channel: callerChannel.id });
-//         console.log('✅ Caller added to bridge');
-//     } catch (err) {
-//         console.error('❌ Failed to add caller to bridge:', err.message);
-//         return { status: 'bridge_failed' };
-//     }
-
-//     for (let i = 0; i < numbers.length; i++) {
-//         const number = numbers[i];
-//         const endpoint = `PJSIP/${number}@PSTN-Twilio`;
-//         const callerId = callerChannel.caller.number || '+10000000000';
-
-//         console.log(`📞 Attempting to dial: ${number} (${i + 1}/${numbers.length})`);
-
-//         const outgoing = await client.channels.originate({
-//             endpoint,
-//             app: 'ivrapp',
-//             appArgs: number,
-//             callerId,
-//             timeout,
-//         });
-
-//         const result = await new Promise((resolve) => {
-//             let resolved = false;
-
-//             const safeResolve = (res) => {
-//                 if (!resolved) {
-//                     resolved = true;
-//                     resolve(res);
-//                 }
-//             };
-
-//             outgoing.once('StasisStart', async (event, outChan) => {
-//                 console.log('✅ Outgoing call answered:', outChan.name);
-//                 try {
-//                     await bridge.addChannel({ channel: outChan.id });
-//                 } catch (err) {
-//                     console.error('❌ Failed to bridge call:', err.message);
-//                     return safeResolve({ status: 'bridge_failed' });
-//                 }
-
-//                 let startTime = Date.now();
-
-//                 outChan.once('StasisEnd', () => {
-//                     const duration = Date.now() - startTime;
-//                     console.log(`📴 Outgoing call ended after ${duration} ms`);
-
-//                     if (duration >= 5000) {
-//                         // Talked at least 5 seconds → success
-//                         safeResolve({ status: 'completed' });
-//                     } else {
-//                         // Too short → consider failed
-//                         safeResolve({ status: 'too_short' });
-//                     }
-//                 });
-
-
-//             });
-
-//             outgoing.once('ChannelDestroyed', () => {
-//                 console.log('📞 Outbound call not answered or got disconnected');
-//                 safeResolve({ status: 'not_answered' });
-//             });
-
-//             setTimeout(() => {
-//                 if (!resolved) {
-//                     console.warn('⏰ Timeout dialing number:', number);
-//                     safeResolve({ status: 'timeout' });
-//                 }
-//             }, timeout * 1000);
-//         });
-
-//         if (result.status === 'completed') {
-//             logger.info('✅ Call connected and lasted long enough — skipping next calls.');
-//         } else {
-//             logger.info(`❌ Forwarding failed or call too short (${result.status}), playing sorry message`);
-//             await playSound(client, channel, 'sound:sorry', channelAlive);
-//         }
-
-//     }
-
-//     return { status: 'all_failed' };
-// }
-
-// async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 20) {
-//     const bridge = client.Bridge();
-//     await bridge.create({ type: 'mixing' });
-
-//     callerChannel.ring();
-//     await bridge.addChannel({ channel: callerChannel.id });
-
-//     const outgoingChannels = [];
-
-//     const attempts = numbers.map((number) => {
-//         return new Promise((resolve) => {
-//             const endpoint = `PJSIP/${number}@PSTN-Twilio`;
-//             const callerId = callerChannel.caller.number || '+10000000000';
-
-//             const outgoing = client.channels.originate({
-//                 endpoint,
-//                 app: 'ivrapp',
-//                 appArgs: number,
-//                 callerId,
-//                 timeout
-//             });
-
-//             outgoing.then((outChan) => {
-//                 outgoingChannels.push(outChan);
-
-//                 let startTime = Date.now();
-
-//                 outChan.once('StasisStart', async () => {
-//                     logger.info(`✅ Outgoing call answered: ${outChan.name}`);
-//                     try {
-//                         await bridge.addChannel({ channel: outChan.id });
-//                     } catch (err) {
-//                         logger.error('❌ Failed to bridge:', err.message);
-//                         return resolve({ status: 'bridge_failed' });
-//                     }
-
-//                     outChan.once('StasisEnd', () => {
-//                         const duration = Date.now() - startTime;
-//                         logger.info(`📴 Call duration: ${duration}ms`);
-
-//                         if (duration >= 5000) {
-//                             resolve({ status: 'completed', channel: outChan });
-//                         } else {
-//                             resolve({ status: 'too_short' });
-//                         }
-//                     });
-//                 });
-
-//                 outChan.once('ChannelDestroyed', () => {
-//                     resolve({ status: 'not_answered' });
-//                 });
-
-//                 setTimeout(() => {
-//                     resolve({ status: 'timeout' });
-//                 }, timeout * 1000);
-//             }).catch((err) => {
-//                 logger.warn(`❌ Failed to originate ${number}: ${err.message}`)
-//                 resolve({ status: 'originate_failed' });
-//             });
-//         });
-//     });
-
-//     const result = await Promise.race(attempts);
-
-//     // Hangup all other channels if one connected
-//     for (const chan of outgoingChannels) {
-//         if (chan.id !== result?.channel?.id) {
-//             try {
-//                 await chan.hangup();
-//             } catch {}
-//         }
-//     }
-
-//     return result;
-// }
-
-// async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 20, strategy = 'hunt', flowId = '') {
-//     const bridge = client.Bridge();
-//     await bridge.create({ type: 'mixing' });
-//     callerChannel.ring();
-//     await bridge.addChannel({ channel: callerChannel.id });
-
-//     let orderedNumbers = [...numbers];
-//     logger.info('strategy:', strategy);
-//     switch (strategy) {
-//         case 'random':
-//             orderedNumbers = orderedNumbers.sort(() => Math.random() - 0.5);
-//             return await dialSequential(client, bridge, callerChannel, orderedNumbers, timeout, flowId);
-
-//         case 'memoryhunt': {
-//             if (flowId) {
-//                 const last = await redis.get(`ivr:last_dialed:${flowId}`);
-//                 if (last && orderedNumbers.includes(last)) {
-//                     const index = orderedNumbers.indexOf(last);
-//                     orderedNumbers = [...orderedNumbers.slice(index + 1), ...orderedNumbers.slice(0, index + 1)];
-//                 }
-//             }
-//             return await dialSequential(client, bridge, callerChannel, orderedNumbers, timeout, flowId);
-//         }
-
-//         case 'firstavailable':
-//         case 'firstnotonphone': {
-//             const filtered = [];
-//             for (const num of orderedNumbers) {
-//                 const state = await getExtensionState(num);
-//                 if (
-//                     (strategy === 'firstavailable' && (state === 'Idle' || state === 'Unavailable')) ||
-//                     (strategy === 'firstnotonphone' && state === 'Idle')
-//                 ) {
-//                     filtered.push(num);
-//                 }
-//             }
-//             return await dialSequential(client, bridge, callerChannel, filtered, timeout, flowId);
-//         }
-
-//         case 'ringall':
-//             return await dialRingAll(client, bridge, callerChannel, orderedNumbers, timeout);
-
-//         case 'hunt':
-//         default:
-//             return await dialSequential(client, bridge, callerChannel, orderedNumbers, timeout, flowId);
-//     }
-// }
-
-async function dialPhoneNumbers(client, callerChannel, numbers = [], timeout = 20, strategy = 'hunt', flowId = '') {
-    const ringGroupExtension = '600'; // Static ring group extension (configured in FreePBX)
-    const endpoint = `Local/${ringGroupExtension}@from-internal`;
-    const callerId = callerChannel.caller?.number || '+10000000000';
-  
     try {
-      // Originate call to ring group
-      await callerChannel.continueInDialplan({
-        context: 'from-internal',
-        extension: '600',
-        priority: 1
-      });
-      
-    //   const outgoing = await client.channels.originate({
-    //     endpoint,
-    //     app: 'ivrapp',
-    //     appArgs: ringGroupExtension,
-    //     callerId,
-    //     timeout
-    //   });
-  
-      // Wait for caller hangup before continuing
-      await new Promise((resolve) => {
-        callerChannel.once('StasisEnd', () => {
-          logger.info(`📴 Caller ${callerChannel.name} left Stasis after ring group`);
-          resolve();
+
+        // Start recording before forwarding the call
+        const bridge = client.Bridge();
+        await bridge.create({ type: 'mixing' });
+
+        // Add caller to bridge
+        await bridge.addChannel({ channel: channel?.id });
+        const callerNumber = channel.caller?.number || 'unknown';
+        const flowName = flow?.name?.replace(/\s+/g, '_') || 'ivr';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        const recordingName = `${flowName}_${timestamp}`;
+        if (isRecordingEnabled) {
+            callStartTime = Date.now();
+            await bridge.record({
+                name: recordingName,
+                format: 'wav',
+                beep: false,
+                ifExists: 'overwrite'
+            });
+            logger.info(`🎙️ Recording started: ${recordingName}`);
+        }
+
+        const recordingPath = `/var/spool/asterisk/recording/${ivrDetails?.id}/${recordingName}.wav`;
+        await CallRecordingService.create({
+            ivrId: ivrDetails?.id || null,
+            caller: channel?.caller?.number || null,
+            callee: ringGroupId,
+            recordingPath: recordingPath,
+            status: 'completed',
+            timestamp: new Date()
         });
-      });
-  
-      return { status: 'completed' };
+
+        logger.info(`💾 Call log saved with recording: ${recordingPath}`);
+
+        // Originate call to dynamic ring group
+        await channel.continueInDialplan({
+            context: 'from-internal',
+            extension: ringGroupId,
+            priority: 1
+        });
+
+        // Wait for caller hangup before continuing
+        await new Promise((resolve) => {
+            channel.once('StasisEnd', () => {
+                logger.info(`📴 Caller ${channel.name} left Stasis after ring group`);
+                resolve();
+            });
+        });
+
+        return { status: 'completed' };
     } catch (err) {
-      logger.error(`❌ Failed to originate to ring group ${ringGroupExtension}: ${err.message}`);
-      return { status: 'failed' };
+        logger.error(`❌ Failed to originate to ring group ${ringGroupId}: ${err.message}`);
+        return { status: 'failed' };
     }
-  }
-  
+}
 
-// [custom-ivrapp-incoming-custom]
-// exten => 1001,1,NoOp(Entering call forward test)
-//  ;same => n,Dial(PJSIP/+16476546126@PSTN-Twilio,30)
-//  same => n,NoOp(Forwarding done or failed. Entering ARI...)
-//  same => n,Stasis(ivrapp)
-//  same => n,Hangup()
-
-async function runIVRFlow(client, channel, flow, channelAlive) {
+async function runIVRFlow({ client, channel, flow, channelAlive, ivrDetails }) {
     console.log('📜 Running IVR flow:');
 
     const nodesMap = Object.fromEntries(flow.nodes.map(n => [n.id, n]));
@@ -379,6 +194,8 @@ async function runIVRFlow(client, channel, flow, channelAlive) {
             continue;
         }
 
+        const isRecordingEnabled = flow?.recordingEnabled || true;
+
         switch (type) {
             case 'start':
                 currentNodeId = getNextNodeId(currentNodeId);
@@ -388,8 +205,10 @@ async function runIVRFlow(client, channel, flow, channelAlive) {
                 if (!channelAlive) return;
                 logger.info('✅ Answering call');
                 await channel.answer();
+
                 currentNodeId = getNextNodeId(currentNodeId);
                 break;
+
 
             case 'tts': {
                 const gcsUrl = data?.audioUrl;
@@ -413,42 +232,99 @@ async function runIVRFlow(client, channel, flow, channelAlive) {
                 break;
             }
 
-            case 'forward': {
-                const { phones = [], timeout = 20 } = data;
-                const formattedPhones = phones.map(phone =>
-                    phone.startsWith('+') ? phone : `+${phone}`
-                );
-                logger.info(`📞 Forwarding to: ${formattedPhones.join(', ')}`);
+            case 'input': {
+                const retries = data.retries || 10;
+                let userInput = null;
+                let attempts = 0;
 
-                const strategy = data?.strategy || 'ringall';
-                console.log("strategy", strategy)
-                const result = await dialPhoneNumbers(client, channel, formattedPhones, timeout, strategy);
+                while (attempts < retries && userInput === null) {
+                    try {
+                        userInput = await waitForDTMF(channel, data.timeout || 5);
+                        logger.info(`🔢 DTMF received: ${userInput}`);
+                    } catch {
+                        attempts++;
+                        logger.warn(`⚠ No input (Attempt ${attempts}/${retries})`);
+                    }
+                }
 
-                if (result.status === 'completed') {
-                    flow.forwardSuccess = true;
-                    logger.info('✅ Call connected successfully — waiting until caller hangs up');
+                let matchedChoice = null;
 
-                    // prevent IVR from going to next nodes like hangup
-                    return await new Promise((resolve) => {
-                        channel.once('StasisEnd', () => {
-                            logger.info(`📴 Caller ${channel.name} hung up. Ending IVR.`);
-                            resolve();
-                        });
-                    });
+                if (userInput) {
+                    for (const choice of data.choices || []) {
+                        if (choice.dtmf === userInput) {
+                            matchedChoice = choice;
+                            break;
+                        }
+                    }
+                }
+
+                if (!userInput && data.choices) {
+                    matchedChoice = data.choices.find(c => c.condition === 'no_input');
+                }
+
+                if (!matchedChoice && userInput) {
+                    matchedChoice = data.choices.find(c => c.condition === 'unknown');
+                }
+
+                if (matchedChoice?.next) {
+                    currentNodeId = matchedChoice.next;
+                    console.log(`Matched choice: ${matchedChoice.dtmf}, Next node: ${currentNodeId}`);
                 } else {
-                    flow.forwardSuccess = false;
-                    logger.info('❌ All calls failed, playing sorry message if defined');
-                    logger.info(`📞 Forward result: ${result.status}`);
-                    currentNodeId = getNextNodeId(currentNodeId);
+                    logger.info('📞 No valid input or fallback found, hanging up...');
+
+                    await channel.hangup();
+                    return;
                 }
 
                 break;
+            }
+
+            case 'forward': {
+                const { ringGroupId } = data;
+
+                console.log("ringGroupId", ringGroupId)
+                let ringGroupNumber, numbers, strategy;
+                if (ringGroupId) {
+                    const ringGroup = await RingGroupService.findByIdWithoutAuth(ringGroupId);
+                    if (ringGroup) {
+                        ringGroupNumber = ringGroup.ringGroupId;
+                        numbers = ringGroup.phones;
+                        strategy = ringGroup.strategy || "ringall";
+                        logger.info(`📞 Fetched ring group ${ringGroupId}: [${numbers.join(', ')}]`);
+                    } else {
+                        logger.warn(`⚠ Ring group ${ringGroupId} not found, falling back to inline phones`);
+                    }
+                }
+                console.log("ringGroupNumber", ringGroupNumber);
+                const result = await dialPhoneNumbers({ client, channel, ringGroupId: ringGroupNumber, flow, ivrDetails, isRecordingEnabled });
+
+                    if (result.status === 'completed') {
+                        flow.forwardSuccess = true;
+
+                        logger.info('✅ Call connected successfully — waiting until caller hangs up');
+
+                        // prevent IVR from going to next nodes like hangup
+                        return await new Promise((resolve) => {
+                            channel.on('StasisEnd', async () => {
+                                logger.info(`📴 Caller ${channel.name} hung up. Ending IVR.`);
+                                resolve();
+                            });
+                        });
+                    } else {
+                        flow.forwardSuccess = false;
+                        logger.info('❌ All calls failed, playing sorry message if defined');
+                        logger.info(`📞 Forward result: ${result.status}`);
+                        currentNodeId = getNextNodeId(currentNodeId);
+                    }
+
+                    break;
             }
 
             case 'hangup':
                 logger.info('📞 Hangup node reached. Terminating call.');
                 if (channelAlive) await channel.hangup();
                 currentNodeId = null;
+               
                 break;
 
             default:

@@ -371,3 +371,62 @@ export async function deleteRingGroup(ringGroupId) {
   logger.info(`✅ Ring group ${ringGroupId} deleted successfully in FreePBX`);
   return true;
 }
+
+
+export const getAllCdrs = async (options = {}) => {
+  const token = await getAccessToken();
+  // cdrs {
+  //   id
+  //   uniqueid
+  //   calldate
+  //   timestamp
+  //   clid
+  //   src
+  //   dst
+  //   dcontext
+  //   channel
+  //   dstchannel
+  //   lastapp
+  //   lastdata
+  //   duration
+  //   billsec
+  //   disposition
+  //   accountcode
+  //   userfield
+  //   did
+  //   recordingfile
+  //   cnum
+  //   outbound_cnum
+  //   outbound_cnam
+  //   dst_cnam
+  //   linkedid
+  //   peeraccount
+  //   sequence
+  //   amaflags
+  // }
+  const gqlQuery = gql`
+    query {
+      fetchAllCdrs {
+        totalCount
+        status
+        message
+      }
+    }
+  `;
+
+  const variables = {
+    first: options?.first || 10,
+    after: options?.after || 0,
+    orderby: options?.orderby || 'duration',
+    startDate: options?.startDate || '2021-01-01',
+    endDate: options?.endDate || '2025-12-31'
+  };
+
+  const data = await request(endpoint, gqlQuery, {}, {
+    Authorization: `Bearer ${token}`
+  });
+
+  console.log("###data",data)
+  // Return the raw result from the API
+  return data?.fetchAllCdrs || {};
+};

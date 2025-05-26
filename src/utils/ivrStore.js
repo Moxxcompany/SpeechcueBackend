@@ -8,7 +8,7 @@ export async function getIVRFlowByPhoneNumber(phoneNum) {
       where: { phoneNumber: phoneNum },
       include: [{
         model: IVR,
-        as: 'ivr', 
+        as: 'ivr',
       }],
     });
 
@@ -18,7 +18,14 @@ export async function getIVRFlowByPhoneNumber(phoneNum) {
     }
 
     console.log(`📞 Matched phone: ${phone.phoneNumber} → IVR: ${phone.ivr.name}`);
-    return phone.ivr.flow;
+    return {
+      flow: phone.ivr.flow,
+      ivrDetails: {
+        id: phone.ivr.id,
+        name: phone.ivr.name,
+        description: phone.ivr.description,
+      }
+    };
   } catch (err) {
     console.error(`⚠ Failed to fetch IVR flow for ${phoneNum}:`, err);
     return null;

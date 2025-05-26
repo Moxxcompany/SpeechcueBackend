@@ -1278,6 +1278,23 @@ paths:
                 description:
                   type: string
                   example: "Updated support group"
+        responses:
+          '200':
+            description: Ring group updated successfully
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    data:
+                      $ref: '#/components/schemas/RingGroup'
+          '404':
+            description: Ring group not found
+          '500':
+            description: Failed to update ring group
 
 
     delete:
@@ -1305,6 +1322,236 @@ paths:
         500:
           description: Internal server error
 
+  /api/trunks:
+      post:
+        summary: Create a new trunk
+        tags:
+          - Trunks
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrunkInput'
+        responses:
+          '200':
+            description: Trunk created successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Trunk'
+      get:
+        summary: Get all trunks for a user
+        tags:
+          - Trunks
+        parameters:
+          - name: userId
+            in: query
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: List of trunks
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Trunk'
+
+  /api/trunks/{id}:
+      get:
+        summary: Get a trunk by ID
+        tags:
+          - Trunks
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+          - name: userId
+            in: query
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: Trunk details
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Trunk'
+      put:
+        summary: Update a trunk
+        tags:
+          - Trunks
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrunkInput'
+        responses:
+          '200':
+            description: Updated trunk
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Trunk'
+      delete:
+        summary: Delete a trunk
+        tags:
+          - Trunks
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: integer
+          - name: userId
+            in: query
+            required: true
+            schema:
+              type: integer
+        responses:
+          '200':
+            description: Trunk deleted
+
+  /api/callrecordings/ivr/{ivrId}:
+    get:
+      tags: [Recordings]
+      summary: Get recordings by IVR ID
+      parameters:
+        - name: ivrId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of call recordings for the given IVR
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        caller:
+                          type: string
+                        callee:
+                          type: string
+                        duration:
+                          type: integer
+                        recordingPath:
+                          type: string
+                        transcript:
+                          type: string
+                        audioUrl:
+                          type: string
+
+components:
+  schemas:
+      RingGroup:
+        type: object
+        properties:
+          id:
+            type: integer
+          ringGroupId:
+            type: string
+          strategy:
+            type: string
+          timeout:
+            type: integer
+          phones:
+            type: array
+            items:
+              type: string
+          description:
+            type: string
+          userId:
+            type: integer
+          createdAt:
+            type: string
+          updatedAt:
+            type: string
+      Trunk:
+        type: object
+        properties:
+          id:
+            type: integer
+          trunkId:
+            type: string
+          name:
+            type: string
+          tech:
+            type: string
+            enum: [pjsip, sip]
+          outboundPrefix:
+            type: string
+          provider:
+            type: string
+          username:
+            type: string
+          password:
+            type: string
+          server:
+            type: string
+          port:
+            type: string
+          callerId:
+            type: string
+          userId:
+            type: integer
+
+      TrunkInput:
+        type: object
+        required:
+          - name
+          - tech
+          - server
+          - username
+          - password
+          - userId
+        properties:
+          trunkId:
+            type: string
+          name:
+            type: string
+          tech:
+            type: string
+            enum: [pjsip, sip]
+          outboundPrefix:
+            type: string
+          provider:
+            type: string
+          username:
+            type: string
+          password:
+            type: string
+          server:
+            type: string
+          port:
+            type: string
+          callerId:
+            type: string
+          userId:
+            type: integer
 
 tags:
   - name: Users
@@ -1323,3 +1570,5 @@ tags:
     description: Text-to-Speech (TTS) related APIs
   - name: RingGroups
     description: Ring group call management and routing
+  - name: Trunks
+    description: Manage SIP trunks for outbound calls
